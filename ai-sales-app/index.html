@@ -264,6 +264,10 @@ canvas{max-width:100%;}
   <div class="panel-title">📊 経営ダッシュボード</div>
   <div class="panel-desc">今月の実績と、月利50万円・100万円ゴールへの進捗を一目で確認できます。</div>
 
+  <div class="disclaimer" id="sampleBanner" style="display:none;">
+    📊 これはサンプルデータです。実際の仕入れ・販売を記録し始めると自動的に切り替わります（サンプルだけ消したい場合は「全データを削除」）。
+  </div>
+
   <div class="card">
     <h3><span class="ic">🎯</span>目標達成プログレス（当月）</h3>
     <div class="progress-wrap">
@@ -656,6 +660,7 @@ const LS_PRODUCTS = 'aiSalesPilot_products_v1';
 const LS_SETTINGS = 'aiSalesPilot_settings_v1';
 const LS_ROADMAP  = 'aiSalesPilot_roadmap_v1';
 const LS_AI       = 'aiSalesPilot_aiSettings_v1';
+const LS_IS_SAMPLE = 'aiSalesPilot_isSample_v1';
 
 const PLATFORMS = ['Amazon','メルカリ','ヤフオク!','楽天ラクマ','BASE/自社EC','その他'];
 const DEFAULT_FEES = {
@@ -813,6 +818,7 @@ function addResearchToInventory(){
     outShip: p.outShip, adCost: p.adCost, purchaseDate:'', soldDate:'', supplier:'', memo:''
   });
   saveProducts();
+  markRealDataEntered();
   toast('在庫に登録しました（仕入れ検討中）');
 }
 
@@ -965,9 +971,13 @@ function saveProductForm(id){
     products.push({id: uid(), ...data});
   }
   saveProducts();
+  markRealDataEntered();
   closeProductForm();
   renderInventory(); renderDashboard();
   toast('保存しました');
+}
+function markRealDataEntered(){
+  localStorage.removeItem(LS_IS_SAMPLE);
 }
 
 /* ============================================================
@@ -1050,6 +1060,7 @@ function lastNMonthKeys(n){
 function soldProducts(){ return products.filter(p=>p.status==='売却済み' && p.soldDate); }
 
 function renderDashboard(){
+  document.getElementById('sampleBanner').style.display = localStorage.getItem(LS_IS_SAMPLE) ? 'block' : 'none';
   const tm = thisMonthKey();
   const sold = soldProducts();
   const thisMonthSold = sold.filter(p=>monthKey(p.soldDate)===tm);
@@ -1134,8 +1145,11 @@ function renderAnalytics(){
 function setupCanvas(id){
   const c = document.getElementById(id);
   const dpr = window.devicePixelRatio || 1;
-  const cssW = c.parentElement.clientWidth - 40;
-  const cssH = Number(c.getAttribute('height')) || 200;
+  // Clamp to a sane minimum: if the tab holding this canvas is currently hidden
+  // (display:none), clientWidth reads 0 and would otherwise yield a negative size.
+  // The chart redraws correctly next time its tab becomes active.
+  const cssW = Math.max(c.parentElement.clientWidth - 40, 100);
+  const cssH = Math.max(Number(c.getAttribute('height')) || 200, 50);
   c.width = cssW*dpr; c.height = cssH*dpr; c.style.width=cssW+'px'; c.style.height=cssH+'px';
   const ctx = c.getContext('2d');
   ctx.scale(dpr,dpr);
@@ -1494,6 +1508,7 @@ function importData(evt){
       if(data.settings && data.settings.fees) settings = data.settings;
       if(data.roadmap) localStorage.setItem(LS_ROADMAP, JSON.stringify(data.roadmap));
       saveProducts(); saveSettings();
+      markRealDataEntered();
       renderAll();
       toast('インポートしました');
     }catch(err){
@@ -1508,6 +1523,7 @@ function clearAllData(){
   products = [];
   saveProducts();
   localStorage.removeItem(LS_ROADMAP);
+  localStorage.removeItem(LS_IS_SAMPLE);
   renderAll();
   toast('データを削除しました');
 }
@@ -1517,6 +1533,13 @@ function clearAllData(){
    ============================================================ */
 function loadSampleData(){
   if(products.length>0 && !confirm('既存の商品データに、サンプルデータを追加します。よろしいですか？')) return;
+  products = products.concat(buildSampleItems());
+  saveProducts();
+  localStorage.setItem(LS_IS_SAMPLE, '1');
+  renderAll();
+  toast('サンプルデータを投入しました（6ヶ月分の推移が確認できます）');
+}
+function buildSampleItems(){
   const sampleNames = {
     '家電':['ワイヤレスイヤホン','モバイルバッテリー','スマートウォッチ','LEDデスクライト'],
     'ゲーム':['レトロゲーム機','人気タイトル ソフト','コントローラー','ゲーミングヘッドセット'],
@@ -1574,10 +1597,7 @@ function loadSampleData(){
       soldDate:'', supplier:'サンプル仕入先', memo:'サンプルデータ'
     });
   });
-  products = products.concat(newItems);
-  saveProducts();
-  renderAll();
-  toast('サンプルデータを投入しました（6ヶ月分の推移が確認できます）');
+  return newItems;
 }
 
 /* ============================================================
@@ -1598,6 +1618,14 @@ function renderAll(){
   renderRoadmapChecklists();
 }
 loadState();
+if(products.length===0){
+  // First visit: seed with clearly-labeled sample data so the dashboard shows what the
+  // app does at a glance, instead of an empty shell. Cleared automatically once the
+  // user enters their own data (or explicitly via "全データを削除").
+  products = buildSampleItems();
+  saveProducts();
+  localStorage.setItem(LS_IS_SAMPLE, '1');
+}
 initResearchForm();
 renderAll();
 window.addEventListener('resize', ()=>{ renderDashboard(); if(document.getElementById('tab-analytics').classList.contains('active')) renderAnalytics(); });
