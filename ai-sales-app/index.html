@@ -674,6 +674,15 @@ let products = [];
 let settings = { fees: {...DEFAULT_FEES} };
 let editingId = null;
 
+// Optional: when this page runs inside the Claude Artifact viewer, `window.claude` is present
+// and offering a save through it (instead of a plain <a download> link, which the viewer
+// sandbox ignores) lets "backup export" actually work there. Absent entirely when the page
+// is just opened as a local/hosted HTML file — exportData() falls back to a normal download.
+let downloadsCap = null;
+if(window.claude && typeof window.claude.use === 'function'){
+  window.claude.use('downloads').then(d=>{ downloadsCap = d; }).catch(()=>{});
+}
+
 function loadState(){
   try{ products = JSON.parse(localStorage.getItem(LS_PRODUCTS)) || []; }catch(e){ products = []; }
   try{ const s = JSON.parse(localStorage.getItem(LS_SETTINGS)); if(s && s.fees) settings = s; }catch(e){}
@@ -1487,12 +1496,26 @@ function updateFeePreset(platform, val){
 /* ============================================================
    DATA MANAGEMENT
    ============================================================ */
-function exportData(){
+async function exportData(){
   const data = { products, settings, roadmap: JSON.parse(localStorage.getItem(LS_ROADMAP)||'{}'), exportedAt: new Date().toISOString() };
-  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const json = JSON.stringify(data, null, 2);
+  const filename = 'ai-sales-pilot-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  if(downloadsCap){
+    // Running inside the Claude Artifact viewer: a plain <a download> link is inert there,
+    // so hand the file to the platform's own save dialog instead.
+    try{
+      await downloadsCap.save({ filename, data: json });
+      toast('エクスポートしました');
+    }catch(e){
+      if(!e || e.code!=='declined') toast('エクスポートに失敗しました：' + (e && e.message || '不明なエラー'));
+    }
+    return;
+  }
+  // Running as a plain local/hosted HTML file: normal browser download works fine.
+  const blob = new Blob([json], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'ai-sales-pilot-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  a.href = url; a.download = filename;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
   toast('エクスポートしました');
