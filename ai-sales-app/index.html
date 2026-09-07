@@ -228,6 +228,23 @@ canvas{max-width:100%;}
   z-index:2000;opacity:0;transition:opacity .3s;pointer-events:none;box-shadow:0 6px 24px rgba(0,0,0,0.5);
 }
 .toast.show{opacity:1;}
+
+/* Diff alert modal */
+.modal-overlay{
+  position:fixed;inset:0;z-index:3000;
+  background:rgba(4,6,10,0.72);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;padding:20px;
+}
+.modal-overlay.active{display:flex;}
+.modal-card{
+  width:100%;max-width:420px;
+  background:#0d1420;border:1px solid var(--gold);border-radius:18px;
+  padding:26px;box-shadow:0 20px 60px rgba(0,0,0,0.6),0 0 40px rgba(245,158,11,0.15);
+  animation:fadeIn .25s ease;
+}
+.modal-card h3{font-size:1.05rem;font-weight:900;color:var(--gold);margin-bottom:4px;}
+.modal-card .modal-sub{font-size:0.78rem;color:var(--text2);margin-bottom:16px;}
+.modal-card .modal-name{font-size:1rem;font-weight:800;color:#fff;margin-bottom:12px;}
 </style>
 </head>
 <body>
@@ -371,6 +388,13 @@ canvas{max-width:100%;}
         <div class="field">
           <label>広告・その他コスト（合計）</label>
           <input type="number" id="rAdCost" placeholder="例：0" value="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field" style="grid-column:1/-1;">
+          <label>参照URL（任意）</label>
+          <input type="text" id="rSourceUrl" placeholder="仕入れ元・販売先の商品ページURL">
+          <div class="field-hint">入力しておくと、差額アラートのポップアップから商品ページを直接開けます。</div>
         </div>
       </div>
       <div class="btn-row">
@@ -553,9 +577,54 @@ canvas{max-width:100%;}
   </div>
 
   <div class="card">
-    <h3><span class="ic">👥</span>AI社員｜本日のタスクリスト</h3>
-    <p style="font-size:0.82rem;color:var(--text2);margin-bottom:12px;">在庫データから、今日中に手を付けるべき作業を自動でリストアップします（対応すると自動的にリストから消えます）。</p>
-    <div id="staffTasks"></div>
+    <h3><span class="ic">👥</span>AI社員｜担当ごとの業務</h3>
+    <p style="font-size:0.82rem;color:var(--text2);margin-bottom:16px;">1人の万能AIではなく、会社を回すのに必要な業務ごとに担当を分けています。データが変わると、各担当のリストも自動で更新されます。</p>
+
+    <div class="phase-block">
+      <div class="phase-title">🔍 リサーチ担当</div>
+      <div class="phase-sub" id="researchStaffSub">差額アラートのしきい値：¥2,000以上</div>
+      <div id="researchStaffLog"></div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-title">📝 出品担当</div>
+      <div class="phase-sub">仕入れ済みのまま14日以上出品されていない商品</div>
+      <div id="listingStaffTasks"></div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-title">💰 価格担当</div>
+      <div class="phase-sub">ROIが15%未満で、価格見直しが必要な商品</div>
+      <div id="pricingStaffTasks"></div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-title">📦 在庫・出荷担当</div>
+      <div class="phase-sub">仕入れから60日以上動きのない在庫</div>
+      <div id="inventoryStaffTasks"></div>
+    </div>
+
+    <div class="phase-block" style="margin-bottom:0;">
+      <div class="phase-title">💬 カスタマー対応担当</div>
+      <div class="phase-sub">よくある問い合わせへの返信ドラフトを作成（送信は必ずご自身で内容を確認の上、行ってください）</div>
+      <div class="form-row">
+        <div class="field">
+          <label>対象商品</label>
+          <select id="csProductSelect"></select>
+        </div>
+        <div class="field">
+          <label>問い合わせ内容</label>
+          <select id="csInquiryType">
+            <option value="shipping">発送はいつですか？</option>
+            <option value="discount">値下げは可能ですか？</option>
+            <option value="condition">商品の状態を教えてください</option>
+            <option value="complaint">届いた商品に問題がありました</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="generateCsReply()">💬 返信ドラフトを作成</button>
+      <textarea id="csReplyOutput" rows="6" style="width:100%;margin-top:10px;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:12px;color:var(--text);font-size:0.85rem;line-height:1.7;"></textarea>
+    </div>
   </div>
 </section>
 
@@ -634,6 +703,15 @@ canvas{max-width:100%;}
   </div>
 
   <div class="card">
+    <h3><span class="ic">🔔</span>リサーチ通知（差額アラート）</h3>
+    <p style="font-size:0.82rem;color:var(--text2);margin-bottom:14px;">「商品リサーチ」でシミュレーションした際、売価と原価の差額がこの金額以上になったらポップアップで通知します。</p>
+    <div class="field" style="max-width:280px;">
+      <label>通知しきい値（円）</label>
+      <input type="number" id="diffThresholdInput" step="100" onchange="updateDiffThreshold(this.value)">
+    </div>
+  </div>
+
+  <div class="card">
     <h3><span class="ic">🔐</span>AI連携設定（任意・実験的機能）</h3>
     <p style="font-size:0.78rem;color:var(--text3);margin-bottom:14px;line-height:1.6;">
       APIキーはこの端末のブラウザ（localStorage）にのみ保存され、入力後は選択したAIプロバイダーへブラウザから直接送信されます。運営者のサーバーを経由することはありません。共有端末では利用後にキーを削除してください。
@@ -686,6 +764,26 @@ canvas{max-width:100%;}
 
 <div class="toast" id="toast"></div>
 
+<!-- DIFF ALERT MODAL (research staff notification) -->
+<div class="modal-overlay" id="diffAlertModal">
+  <div class="modal-card">
+    <h3>🔔 掘り出し物を検出しました！</h3>
+    <div class="modal-sub">リサーチ担当より：設定しきい値以上の差額を検知しました</div>
+    <div class="modal-name" id="diffAlertName"></div>
+    <div class="stat-row"><span>売買の差額（売価－原価）</span><span class="v pos" id="diffAlertDiff"></span></div>
+    <div class="stat-row"><span>手数料等を差し引いた実質利益</span><span class="v" id="diffAlertProfit"></span></div>
+    <div class="stat-row"><span>ROI</span><span class="v" id="diffAlertRoi"></span></div>
+    <p style="font-size:0.75rem;color:var(--text3);line-height:1.6;margin:12px 0 4px;">
+      ⚠️ 購入の実行はご自身で行ってください。下のボタンは自動購入ではなく、「購入したことを在庫に記録する」ためのものです。
+    </p>
+    <div class="btn-row" style="margin-top:10px;">
+      <button class="btn btn-ghost btn-sm" id="diffAlertUrlBtn" style="display:none;">🔗 商品ページを開く</button>
+      <button class="btn btn-primary btn-sm" onclick="confirmDiffPurchase()">✅ 購入済みとして在庫に登録</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeDiffAlertModal()">あとで検討</button>
+    </div>
+  </div>
+</div>
+
 <script>
 'use strict';
 /* ============================================================
@@ -696,18 +794,21 @@ const LS_SETTINGS = 'aiSalesPilot_settings_v1';
 const LS_ROADMAP  = 'aiSalesPilot_roadmap_v1';
 const LS_AI       = 'aiSalesPilot_aiSettings_v1';
 const LS_IS_SAMPLE = 'aiSalesPilot_isSample_v1';
+const LS_DIFF_LOG = 'aiSalesPilot_diffLog_v1';
 
 const PLATFORMS = ['Amazon','メルカリ','ヤフオク!','楽天ラクマ','BASE/自社EC','その他'];
 const DEFAULT_FEES = {
   'Amazon':12, 'メルカリ':10, 'ヤフオク!':10, '楽天ラクマ':6, 'BASE/自社EC':6.6, 'その他':8
 };
+const DEFAULT_DIFF_THRESHOLD = 2000;
 const CATEGORIES = ['家電','ゲーム','ファッション','コスメ','本','おもちゃ','スポーツ','その他'];
 const STATUS_LIST = ['仕入れ検討中','仕入れ済み','出品中','売却済み','返品/ロス'];
 const CAT_COLORS = ['#10B981','#06B6D4','#8B5CF6','#F59E0B','#EF4444','#EC4899','#3B82F6','#84CC16'];
 
 let products = [];
-let settings = { fees: {...DEFAULT_FEES} };
+let settings = { fees: {...DEFAULT_FEES}, diffAlertThreshold: DEFAULT_DIFF_THRESHOLD };
 let editingId = null;
+let pendingDiffProduct = null;
 
 // Optional: when this page runs inside the Claude Artifact viewer, `window.claude` is present
 // and offering a save through it (instead of a plain <a download> link, which the viewer
@@ -720,7 +821,12 @@ if(window.claude && typeof window.claude.use === 'function'){
 
 function loadState(){
   try{ products = JSON.parse(localStorage.getItem(LS_PRODUCTS)) || []; }catch(e){ products = []; }
-  try{ const s = JSON.parse(localStorage.getItem(LS_SETTINGS)); if(s && s.fees) settings = s; }catch(e){}
+  try{
+    const s = JSON.parse(localStorage.getItem(LS_SETTINGS));
+    // Merge onto the defaults rather than replacing outright, so a backup saved before
+    // diffAlertThreshold existed still gets a sane default instead of undefined.
+    if(s && s.fees) settings = { ...settings, ...s, fees: { ...DEFAULT_FEES, ...s.fees } };
+  }catch(e){}
 }
 function saveProducts(){ localStorage.setItem(LS_PRODUCTS, JSON.stringify(products)); }
 function saveSettings(){ localStorage.setItem(LS_SETTINGS, JSON.stringify(settings)); }
@@ -813,6 +919,7 @@ function readResearchForm(){
     feePct: document.getElementById('rFeePct').value,
     outShip: document.getElementById('rOutShip').value,
     adCost: document.getElementById('rAdCost').value,
+    sourceUrl: document.getElementById('rSourceUrl').value.trim(),
   };
 }
 function calcResearch(){
@@ -837,6 +944,7 @@ function calcResearch(){
     <div class="stat-row"><span>ROI（投下資金に対する利益率）</span><span class="v ${r.roiPct>=0?'pos':'neg'}">${pct(r.roiPct)}</span></div>
   `;
   document.getElementById('researchComment').innerHTML = buildResearchComment(p, r, v);
+  checkDiffAlert(p, r);
 }
 function buildResearchComment(p, r, v){
   const lines = [];
@@ -860,11 +968,68 @@ function addResearchToInventory(){
   products.push({
     id: uid(), name: p.name, category: p.category, platform: p.platform, status: '仕入れ検討中',
     costPrice: p.costPrice, qty: p.qty, inShip: p.inShip, sellPrice: p.sellPrice, feePct: p.feePct,
-    outShip: p.outShip, adCost: p.adCost, purchaseDate:'', soldDate:'', supplier:'', memo:''
+    outShip: p.outShip, adCost: p.adCost, purchaseDate:'', soldDate:'', supplier:'', memo:'', sourceUrl: p.sourceUrl||''
   });
   saveProducts();
   markRealDataEntered();
   toast('在庫に登録しました（仕入れ検討中）');
+}
+
+/* ============================================================
+   DIFF ALERT: notify when a research result's raw buy/sell gap
+   clears the configured threshold, and let the user record the
+   purchase in one click once they've actually bought it themselves.
+   ============================================================ */
+function checkDiffAlert(p, r){
+  const threshold = Number(settings.diffAlertThreshold) || DEFAULT_DIFF_THRESHOLD;
+  const diff = (Number(p.sellPrice)||0) - (Number(p.costPrice)||0); // raw per-unit buy/sell gap, before fees/shipping
+  if(diff < threshold) return;
+  logHighDiff(p, r, diff);
+  showDiffAlertModal(p, r, diff);
+}
+function logHighDiff(p, r, diff){
+  let log = [];
+  try{ log = JSON.parse(localStorage.getItem(LS_DIFF_LOG)) || []; }catch(e){}
+  log.unshift({
+    name: p.name, category: p.category, platform: p.platform,
+    diff: Math.round(diff), profit: Math.round(r.profit), roiPct: Math.round(r.roiPct),
+    date: new Date().toISOString()
+  });
+  localStorage.setItem(LS_DIFF_LOG, JSON.stringify(log.slice(0,20)));
+}
+function showDiffAlertModal(p, r, diff){
+  pendingDiffProduct = p;
+  document.getElementById('diffAlertName').textContent = p.name;
+  document.getElementById('diffAlertDiff').textContent = yen(diff);
+  document.getElementById('diffAlertProfit').textContent = yen(r.profit);
+  document.getElementById('diffAlertRoi').textContent = pct(r.roiPct);
+  const urlBtn = document.getElementById('diffAlertUrlBtn');
+  if(p.sourceUrl){
+    urlBtn.style.display = 'inline-flex';
+    urlBtn.onclick = ()=> window.open(p.sourceUrl, '_blank', 'noopener');
+  } else {
+    urlBtn.style.display = 'none';
+  }
+  document.getElementById('diffAlertModal').classList.add('active');
+}
+function closeDiffAlertModal(){
+  document.getElementById('diffAlertModal').classList.remove('active');
+  pendingDiffProduct = null;
+}
+function confirmDiffPurchase(){
+  if(!pendingDiffProduct) return;
+  const p = pendingDiffProduct;
+  products.push({
+    id: uid(), name: p.name, category: p.category, platform: p.platform, status: '仕入れ済み',
+    costPrice: p.costPrice, qty: p.qty, inShip: p.inShip, sellPrice: p.sellPrice, feePct: p.feePct,
+    outShip: p.outShip, adCost: p.adCost, purchaseDate: new Date().toISOString().slice(0,10), soldDate:'',
+    supplier:'', memo:'差額アラートから登録', sourceUrl: p.sourceUrl||''
+  });
+  saveProducts();
+  markRealDataEntered();
+  closeDiffAlertModal();
+  renderInventory(); renderDashboard(); renderStaffTasks();
+  toast('「仕入れ済み」として在庫に登録しました');
 }
 
 /* ============================================================
@@ -900,7 +1065,7 @@ function renderInventory(){
         ${list.map(p=>{
           const r = computeProduct(p);
           return `<tr onclick="openEditProductForm('${p.id}')" style="cursor:pointer;">
-            <td>${escapeHtml(p.name)}</td>
+            <td>${escapeHtml(p.name)}${p.sourceUrl ? ` <a href="${escapeAttr(p.sourceUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="商品ページを開く">🔗</a>` : ''}</td>
             <td>${p.category}</td>
             <td>${p.platform}</td>
             <td><span class="pill ${statusPillClass(p.status)}">${p.status}</span></td>
@@ -965,6 +1130,9 @@ function productFormHtml(p){
       <div class="field"><label>仕入先メモ</label><input id="efSupplier" value="${escapeAttr(p.supplier||'')}"></div>
       <div class="field"><label>メモ</label><input id="efMemo" value="${escapeAttr(p.memo||'')}"></div>
     </div>
+    <div class="form-row">
+      <div class="field" style="grid-column:1/-1;"><label>参照URL（任意）</label><input id="efSourceUrl" value="${escapeAttr(p.sourceUrl||'')}" placeholder="仕入れ元・販売先の商品ページURL"></div>
+    </div>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="saveProductForm('${p.id||''}')">💾 保存</button>
       <button class="btn btn-ghost" onclick="closeProductForm()">キャンセル</button>
@@ -1008,6 +1176,7 @@ function saveProductForm(id){
     soldDate: document.getElementById('efSoldDate').value,
     supplier: document.getElementById('efSupplier').value,
     memo: document.getElementById('efMemo').value,
+    sourceUrl: document.getElementById('efSourceUrl').value.trim(),
   };
   if(id){
     const idx = products.findIndex(p=>p.id===id);
@@ -1463,26 +1632,9 @@ async function exportJournalCsv(){
   toast('CSVを出力しました');
 }
 
-function renderStaffTasks(){
-  const { staleItems, unlistedItems, lowMarginItems } = detectBusinessRisks();
-  const today = new Date();
-  const daysSince = d => Math.floor((today-new Date(d))/86400000);
-  const tasks = [];
-  unlistedItems.forEach(p=> tasks.push({icon:'📝', id:p.id,
-    text:`「${escapeHtml(p.name)}」は仕入れから${daysSince(p.purchaseDate)}日経過、まだ出品されていません。出品文を作成して出品しましょう。`}));
-  staleItems.forEach(p=> tasks.push({icon:'🚨', id:p.id,
-    text:`「${escapeHtml(p.name)}」は仕入れから${daysSince(p.purchaseDate)}日経過、未売却です。値下げ・セット販売・処分を検討しましょう。`}));
-  lowMarginItems.forEach(p=>{
-    const r = computeProduct(p);
-    tasks.push({icon:'💰', id:p.id, text:`「${escapeHtml(p.name)}」はROI${Math.round(r.roiPct)}%と低採算です。価格の見直しを検討しましょう。`});
-  });
-
-  const wrap = document.getElementById('staffTasks');
-  if(tasks.length===0){
-    wrap.innerHTML = `<div class="empty-state"><span class="ic">✅</span>現在、緊急のタスクはありません。</div>`;
-    return;
-  }
-  wrap.innerHTML = tasks.map(t=>`
+function taskListHtml(items, emptyText){
+  if(items.length===0) return `<div class="empty-state" style="padding:16px 0;"><span class="ic">✅</span>${emptyText}</div>`;
+  return items.map(t=>`
     <div class="check-item">
       <span style="font-size:1.1rem;">${t.icon}</span>
       <label style="cursor:default;flex:1;">${t.text}</label>
@@ -1490,9 +1642,79 @@ function renderStaffTasks(){
     </div>
   `).join('');
 }
+function renderStaffTasks(){
+  const { staleItems, unlistedItems, lowMarginItems } = detectBusinessRisks();
+  const today = new Date();
+  const daysSince = d => Math.floor((today-new Date(d))/86400000);
+
+  document.getElementById('listingStaffTasks').innerHTML = taskListHtml(
+    unlistedItems.map(p=>({icon:'📝', id:p.id,
+      text:`「${escapeHtml(p.name)}」は仕入れから${daysSince(p.purchaseDate)}日経過、まだ出品されていません。出品文を作成して出品しましょう。`})),
+    '出品し忘れている商品はありません。'
+  );
+  document.getElementById('pricingStaffTasks').innerHTML = taskListHtml(
+    lowMarginItems.map(p=>{
+      const r = computeProduct(p);
+      return {icon:'💰', id:p.id, text:`「${escapeHtml(p.name)}」はROI${Math.round(r.roiPct)}%と低採算です。価格の見直しを検討しましょう。`};
+    }),
+    '価格を見直すべき低採算商品はありません。'
+  );
+  document.getElementById('inventoryStaffTasks').innerHTML = taskListHtml(
+    staleItems.map(p=>({icon:'🚨', id:p.id,
+      text:`「${escapeHtml(p.name)}」は仕入れから${daysSince(p.purchaseDate)}日経過、未売却です。値下げ・セット販売・処分を検討しましょう。`})),
+    '60日以上滞留している在庫はありません。'
+  );
+
+  const threshold = settings.diffAlertThreshold ?? DEFAULT_DIFF_THRESHOLD;
+  const subEl = document.getElementById('researchStaffSub');
+  if(subEl) subEl.textContent = `差額アラートのしきい値：${yen(threshold)}以上`;
+  let diffLog = [];
+  try{ diffLog = JSON.parse(localStorage.getItem(LS_DIFF_LOG)) || []; }catch(e){}
+  const logWrap = document.getElementById('researchStaffLog');
+  if(diffLog.length===0){
+    logWrap.innerHTML = `<div class="empty-state" style="padding:16px 0;"><span class="ic">🔍</span>まだ検出履歴はありません。「商品リサーチ」でシミュレーションすると、しきい値以上の商品がここに記録されます。</div>`;
+  } else {
+    logWrap.innerHTML = `<div class="table-wrap"><table><thead><tr><th>検出日時</th><th>商品名</th><th>差額</th><th>実質利益</th><th>ROI</th></tr></thead><tbody>
+      ${diffLog.map(l=>`<tr>
+        <td>${new Date(l.date).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
+        <td>${escapeHtml(l.name)}</td>
+        <td style="color:#34D399;font-weight:700;">${yen(l.diff)}</td>
+        <td>${yen(l.profit)}</td>
+        <td>${l.roiPct}%</td>
+      </tr>`).join('')}
+    </tbody></table></div>`;
+  }
+
+  renderCsProductSelect();
+}
 function jumpToInventoryItem(id){
   document.querySelector('.tab-btn[data-tab="inventory"]').click();
   setTimeout(()=>openEditProductForm(id), 200);
+}
+
+// カスタマー対応担当: drafts a reply from a fixed set of templates. Always a draft —
+// reading over and actually sending it to the buyer is left to the human.
+const CS_REPLY_TEMPLATES = {
+  shipping: p => `お問い合わせいただきありがとうございます。\n\n「${p.name}」につきまして、ご購入後は迅速な発送を心がけております。発送が完了次第、追跡番号にてご連絡いたします。今しばらくお待ちいただけますと幸いです。\n\nご不明な点がございましたら、お気軽にお申し付けください。`,
+  discount: p => `お問い合わせいただきありがとうございます。\n\n「${p.name}」につきまして、現在${yen(p.sellPrice)}にて出品しておりますが、こちらは仕入れ・状態を踏まえた価格設定となっております。誠に恐れ入りますが、大幅な値下げは難しい状況です。現状価格でのご検討をいただけますと幸いです。`,
+  condition: p => `お問い合わせいただきありがとうございます。\n\n「${p.name}」の状態につきましては、商品説明に記載の通りです。気になる箇所がございましたら、追加の写真をお送りすることも可能ですので、お気軽にお申し付けください。`,
+  complaint: p => `このたびは「${p.name}」につきましてご迷惑をおかけし、誠に申し訳ございません。\n\n状況を確認させていただきたく、お手数ですが問題の詳細（可能であれば写真）をお知らせいただけますでしょうか。確認のうえ、返金または交換にて誠実に対応させていただきます。`,
+};
+function renderCsProductSelect(){
+  const sel = document.getElementById('csProductSelect');
+  const candidates = products.filter(p=>p.status==='出品中'||p.status==='売却済み');
+  if(candidates.length===0){
+    sel.innerHTML = '<option value="">（対象商品がありません）</option>';
+    return;
+  }
+  sel.innerHTML = candidates.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}（${p.platform}）</option>`).join('');
+}
+function generateCsReply(){
+  const id = document.getElementById('csProductSelect').value;
+  const p = products.find(x=>x.id===id);
+  if(!p){ toast('対象商品を選択してください'); return; }
+  const type = document.getElementById('csInquiryType').value;
+  document.getElementById('csReplyOutput').value = CS_REPLY_TEMPLATES[type](p);
 }
 
 /* ============================================================
@@ -1697,12 +1919,18 @@ function renderSettingsTab(){
       <input type="number" step="0.1" value="${settings.fees[p]}" onchange="updateFeePreset('${p}', this.value)">
     </div>
   `).join('');
+  document.getElementById('diffThresholdInput').value = settings.diffAlertThreshold ?? DEFAULT_DIFF_THRESHOLD;
   renderAiSettingsForm();
 }
 function updateFeePreset(platform, val){
   settings.fees[platform] = Number(val)||0;
   saveSettings();
   toast(platform+'の手数料を更新しました');
+}
+function updateDiffThreshold(val){
+  settings.diffAlertThreshold = Math.max(0, Number(val)||0);
+  saveSettings();
+  toast('通知しきい値を更新しました');
 }
 
 /* ============================================================
