@@ -251,6 +251,7 @@ canvas{max-width:100%;}
     <button class="tab-btn" data-tab="listing">🏷️ 出品・価格戦略</button>
     <button class="tab-btn" data-tab="analytics">📈 売上分析</button>
     <button class="tab-btn" data-tab="advisor">🤖 AIアドバイザー</button>
+    <button class="tab-btn" data-tab="org">🏢 AI組織</button>
     <button class="tab-btn" data-tab="roadmap">🗺️ 月利50-100万ロードマップ</button>
     <button class="tab-btn" data-tab="legal">⚖️ 法律・税金</button>
     <button class="tab-btn" data-tab="settings">⚙️ 設定</button>
@@ -524,6 +525,40 @@ canvas{max-width:100%;}
   </div>
 </section>
 
+<!-- ==================== AI ORG (CEO / ACCOUNTANT / STAFF) ==================== -->
+<section class="tab-panel" id="tab-org">
+  <div class="panel-title">🏢 AI組織（社長・経理・社員）</div>
+  <div class="panel-desc">同じ在庫・売上データを、3つの役割の視点から読み直します。誰が何を判断し、誰が実行するかの境界をはっきりさせるための仕組みです。</div>
+
+  <div class="disclaimer">
+    ⚠️ <b>できることとできないことの境界線：</b> ここでの「AI社長」「AI経理」「AI社員」は、データの分析・意思決定の材料・文面の下書きまでを担当します。実際に仕入れ代金を支払う、出品を公開する、価格を変更する、確定申告書を提出する等の「お金や契約が動く操作」は、事業の名義人であるあなた自身の承認と実行が必要です。プラットフォームの多くは自動購入・自動出品ボットを規約で禁止しており、決済手段をAIに預けることも推奨しません。人が最終承認者である体制のまま、判断材料の作成だけをAIに任せる、というのがこの仕組みの前提です。
+  </div>
+
+  <div class="card">
+    <h3><span class="ic">🧑‍💼</span>AI社長｜週次経営会議</h3>
+    <p style="font-size:0.82rem;color:var(--text2);margin-bottom:12px;">今週の実績・重点方針・承認が必要な大口仕入れ案件をまとめます。</p>
+    <button class="btn btn-primary" onclick="generateCeoReport()">📣 今週の経営会議レポートを作成</button>
+    <div id="ceoReport" style="margin-top:16px;"></div>
+  </div>
+
+  <div class="card">
+    <h3><span class="ic">🧮</span>AI経理｜月次決算・税務チェック</h3>
+    <p style="font-size:0.82rem;color:var(--text2);margin-bottom:12px;">年間の売上・利益を確定申告・消費税の判定ラインと照らし合わせ、簡易仕訳をCSVで出力します。</p>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="generateAccountingReport()">🧮 月次決算レポートを作成</button>
+      <button class="btn btn-ghost" onclick="exportJournalCsv()">⬇️ 簡易仕訳CSVを出力</button>
+    </div>
+    <div id="accountingReport" style="margin-top:16px;"></div>
+    <div class="field-hint" style="margin-top:8px;">CSVは「日付・摘要・勘定科目・区分・金額」の簡易フォーマットです。実際の記帳・申告の前に必ず税理士・会計ソフトの形式に合わせてご確認ください。</div>
+  </div>
+
+  <div class="card">
+    <h3><span class="ic">👥</span>AI社員｜本日のタスクリスト</h3>
+    <p style="font-size:0.82rem;color:var(--text2);margin-bottom:12px;">在庫データから、今日中に手を付けるべき作業を自動でリストアップします（対応すると自動的にリストから消えます）。</p>
+    <div id="staffTasks"></div>
+  </div>
+</section>
+
 <!-- ==================== ROADMAP ==================== -->
 <section class="tab-panel" id="tab-roadmap">
   <div class="panel-title">🗺️ 月利50万〜100万円ロードマップ</div>
@@ -716,6 +751,7 @@ document.getElementById('tabBar').addEventListener('click', (e)=>{
   if(btn.dataset.tab==='analytics') renderAnalytics();
   if(btn.dataset.tab==='settings') renderSettingsTab();
   if(btn.dataset.tab==='roadmap') renderRoadmapChecklists();
+  if(btn.dataset.tab==='org') renderStaffTasks();
 });
 
 /* ============================================================
@@ -1228,13 +1264,9 @@ function drawDonutChart(id, values, colors){
 /* ============================================================
    AI ADVISOR (RULE-BASED, ALWAYS AVAILABLE OFFLINE)
    ============================================================ */
-function generateAdvisorReport(){
-  const sold = soldProducts();
-  const months = lastNMonthKeys(3);
-  const monthlyProfits = months.map(m=> sold.filter(p=>monthKey(p.soldDate)===m).reduce((s,p)=>s+computeProduct(p).profit,0));
-  const avgProfit = monthlyProfits.reduce((a,b)=>a+b,0)/3;
-  const trendUp = monthlyProfits[2] > monthlyProfits[0];
-
+// Shared risk-detection used by both the AI Advisor tab and the AI組織 (AI Org) tab below,
+// so "AI社長" and "AI社員" see the exact same underlying signals as the diagnostic report.
+function detectBusinessRisks(){
   const inStock = products.filter(p=>p.status==='仕入れ済み'||p.status==='出品中');
   const today = new Date();
   const staleItems = inStock.filter(p=>{
@@ -1242,17 +1274,31 @@ function generateAdvisorReport(){
     const days = (today - new Date(p.purchaseDate))/86400000;
     return days>60;
   });
-
+  const unlistedItems = products.filter(p=>{
+    if(p.status!=='仕入れ済み' || !p.purchaseDate) return false;
+    const days = (today - new Date(p.purchaseDate))/86400000;
+    return days>=14;
+  });
   const catCount = {};
   products.forEach(p=>{ catCount[p.category]=(catCount[p.category]||0)+1; });
   const totalCount = products.length||1;
   const maxCat = Object.entries(catCount).sort((a,b)=>b[1]-a[1])[0];
   const concentrationRisk = maxCat && (maxCat[1]/totalCount) > 0.6;
-
   const lowMarginItems = products.filter(p=>{
     const r = computeProduct(p);
     return r.roiPct < 15 && (p.status==='出品中'||p.status==='仕入れ済み');
   });
+  return { staleItems, unlistedItems, maxCat, concentrationRisk, lowMarginItems, totalCount };
+}
+
+function generateAdvisorReport(){
+  const sold = soldProducts();
+  const months = lastNMonthKeys(3);
+  const monthlyProfits = months.map(m=> sold.filter(p=>monthKey(p.soldDate)===m).reduce((s,p)=>s+computeProduct(p).profit,0));
+  const avgProfit = monthlyProfits.reduce((a,b)=>a+b,0)/3;
+  const trendUp = monthlyProfits[2] > monthlyProfits[0];
+
+  const { staleItems, maxCat, concentrationRisk, lowMarginItems, totalCount } = detectBusinessRisks();
 
   let diag = [];
   diag.push(avgProfit>=500000 ? '直近3ヶ月平均利益は目標の月利50万円を上回っています。水準を維持しつつ100万円ラインを目指しましょう。'
@@ -1281,6 +1327,172 @@ function generateAdvisorReport(){
     <div class="report-section"><h4>✅ 今やるべきTOPアクション</h4><ul>${actions.map(d=>`<li>${d}</li>`).join('')}</ul></div>
     <div class="report-section"><h4>💰 来月の仕入れ予算目安</h4><p style="font-size:0.9rem;">${yen(nextBudget)} 前後（直近実績の利益額をもとに、資金効率を考慮した目安です）</p></div>
   `;
+}
+
+/* ============================================================
+   AI ORG: CEO / ACCOUNTANT / STAFF
+   ============================================================
+   Same underlying data as the AI Advisor tab, reframed by role. Every
+   function here produces a report or a list — nothing here executes a
+   purchase, publishes a listing, moves money, or files anything.
+   ============================================================ */
+const BIG_DECISION_THRESHOLD = 30000; // yen; sourcing candidates above this need a human "sign-off" read
+
+function generateCeoReport(){
+  const sold = soldProducts();
+  const now = new Date();
+  const daysAgo = n => new Date(now.getTime()-n*86400000);
+  const inRange = (dateStr, from, to) => { const d=new Date(dateStr); return d>=from && d<to; };
+  const sumProfit = list => list.reduce((s,p)=>s+computeProduct(p).profit,0);
+
+  const thisWeek = sold.filter(p=>inRange(p.soldDate, daysAgo(7), now));
+  const lastWeek = sold.filter(p=>inRange(p.soldDate, daysAgo(14), daysAgo(7)));
+  const thisWeekProfit = sumProfit(thisWeek), lastWeekProfit = sumProfit(lastWeek);
+  const trendText = lastWeekProfit===0 ? (thisWeekProfit>0?'先週比較データなし（好調に立ち上がっています）':'まだ実績がありません')
+    : thisWeekProfit >= lastWeekProfit ? `先週比 +${yen(thisWeekProfit-lastWeekProfit)} で増加`
+    : `先週比 ${yen(thisWeekProfit-lastWeekProfit)} で減少`;
+
+  const { staleItems, unlistedItems, maxCat, concentrationRisk, lowMarginItems, totalCount } = detectBusinessRisks();
+  const bigDecisions = products.filter(p=>p.status==='仕入れ検討中' && (Number(p.costPrice)||0)*(Number(p.qty)||1) >= BIG_DECISION_THRESHOLD);
+
+  const priorities = [];
+  if(staleItems.length>0) priorities.push(`滞留在庫${staleItems.length}件の現金化（値下げ・処分）を最優先で片付ける`);
+  if(unlistedItems.length>0) priorities.push(`仕入れ済みで未出品の${unlistedItems.length}件を今週中に出品まで進める`);
+  if(concentrationRisk) priorities.push(`「${maxCat[0]}」カテゴリへの偏り（全体の${Math.round(maxCat[1]/totalCount*100)}%）を是正し、新カテゴリを1つ試す`);
+  if(lowMarginItems.length>0) priorities.push(`低ROI商品${lowMarginItems.length}件の価格・仕入れ先を見直す`);
+  if(priorities.length===0) priorities.push('大きな課題は検出されていません。現在の仕入れペースを維持しつつ、来週のリサーチ候補を増やす');
+
+  document.getElementById('ceoReport').innerHTML = `
+    <div class="report-section">
+      <h4>📊 今週の状況</h4>
+      <p style="font-size:0.9rem;">今週の利益：<b>${yen(thisWeekProfit)}</b>（${trendText}）／ 販売件数：${thisWeek.length}件</p>
+    </div>
+    <div class="report-section">
+      <h4>🎯 今週の重点方針（社長指示）</h4>
+      <ul>${priorities.map(p=>`<li>${p}</li>`).join('')}</ul>
+    </div>
+    <div class="report-section">
+      <h4>✅ 承認待ちの大口仕入れ案件（${yen(BIG_DECISION_THRESHOLD)}以上）</h4>
+      ${bigDecisions.length===0 ? '<p class="badge-note">現在、承認待ちの案件はありません。</p>' : `<ul>${bigDecisions.map(p=>`<li>「${escapeHtml(p.name)}」総額${yen((Number(p.costPrice)||0)*(Number(p.qty)||1))} — 仕入れ実行前にご自身で最終確認してください</li>`).join('')}</ul>`}
+    </div>
+  `;
+}
+
+function yearAggregates(year){
+  const sold = soldProducts().filter(p=>p.soldDate && p.soldDate.slice(0,4)===String(year));
+  return sold.reduce((a,p)=>{ const r=computeProduct(p); a.revenue+=r.revenue; a.profit+=r.profit; return a; }, {revenue:0, profit:0});
+}
+
+function generateAccountingReport(){
+  const year = new Date().getFullYear();
+  const yAgg = yearAggregates(year);
+  const inStock = products.filter(p=>p.status==='仕入れ済み'||p.status==='出品中');
+  const inStockValue = inStock.reduce((s,p)=> s + ((Number(p.costPrice)||0)+(Number(p.inShip)||0))*(Number(p.qty)||1), 0);
+
+  const thresholds = [
+    { label:'給与所得者の副業・確定申告ライン', basis:'所得(利益)', value:200000, current:yAgg.profit },
+    { label:'専業の場合の基礎控除ライン目安', basis:'所得(利益)', value:480000, current:yAgg.profit },
+    { label:'消費税の課税事業者ライン（原則2年前基準）', basis:'課税売上高', value:10000000, current:yAgg.revenue },
+  ];
+
+  document.getElementById('accountingReport').innerHTML = `
+    <div class="report-section">
+      <h4>📅 ${year}年 累計実績</h4>
+      <div class="stat-row"><span>累計売上</span><span class="v">${yen(yAgg.revenue)}</span></div>
+      <div class="stat-row"><span>累計利益（所得の目安）</span><span class="v ${yAgg.profit>=0?'pos':'neg'}">${yen(yAgg.profit)}</span></div>
+      <div class="stat-row"><span>在庫評価額（未売却・資金拘束分）</span><span class="v">${yen(inStockValue)}</span></div>
+    </div>
+    <div class="report-section">
+      <h4>🧾 申告・課税ラインとの照合</h4>
+      ${thresholds.map(t=>{
+        const p = Math.min(100, t.current/t.value*100);
+        const over = t.current >= t.value;
+        return `<div class="progress-wrap">
+          <div class="progress-label"><span>${t.label}（${t.basis}）</span><b>${yen(t.current)} / ${yen(t.value)}</b></div>
+          <div class="progress-bar"><div class="progress-fill ${over?'gold':''}" style="width:${p}%"></div></div>
+          ${over ? `<div class="badge-note" style="color:#FCD34D;">⚠️ このラインに到達/超過しています。対応要否を税理士にご確認ください。</div>` : ''}
+        </div>`;
+      }).join('')}
+      <p class="badge-note">※一般的な目安であり、扶養・他の所得の有無等で実際の判定は変わります。必ず税理士・国税庁の最新情報でご確認ください。</p>
+    </div>
+  `;
+}
+
+function buildJournalRows(){
+  const rows = [['日付','摘要','勘定科目','区分','金額(円)']];
+  products.forEach(p=>{
+    const cost = (Number(p.costPrice)||0) + (Number(p.inShip)||0);
+    if(p.purchaseDate && cost>0){
+      rows.push([p.purchaseDate, `${p.name}（仕入）`, '仕入高', '支出', Math.round(cost*(Number(p.qty)||1))]);
+    }
+    if(p.status==='売却済み' && p.soldDate){
+      const r = computeProduct(p);
+      rows.push([p.soldDate, `${p.name}（売上）`, '売上高', '収入', Math.round(r.revenue)]);
+      if(r.platformFee>0) rows.push([p.soldDate, `${p.name}（販売手数料）`, '支払手数料', '支出', Math.round(r.platformFee)]);
+      if(Number(p.outShip)>0) rows.push([p.soldDate, `${p.name}（発送費）`, '荷造運賃', '支出', Math.round(Number(p.outShip)*(Number(p.qty)||1))]);
+      if(Number(p.adCost)>0) rows.push([p.soldDate, `${p.name}（広告費）`, '広告宣伝費', '支出', Math.round(Number(p.adCost))]);
+    }
+  });
+  return rows;
+}
+function csvEscape(v){
+  const s = String(v);
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+}
+async function exportJournalCsv(){
+  const rows = buildJournalRows();
+  if(rows.length<=1){ toast('出力できる取引データがありません'); return; }
+  const csv = rows.map(r=>r.map(csvEscape).join(',')).join('\r\n');
+  const bom = '﻿'; // keeps Japanese text readable when opened directly in Excel
+  const filename = 'ai-sales-pilot-journal-' + new Date().toISOString().slice(0,10) + '.csv';
+  if(downloadsCap){
+    try{
+      await downloadsCap.save({ filename, data: bom+csv });
+      toast('CSVを出力しました');
+    }catch(e){
+      if(!e || e.code!=='declined') toast('出力に失敗しました：' + (e && e.message || '不明なエラー'));
+    }
+    return;
+  }
+  const blob = new Blob([bom+csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('CSVを出力しました');
+}
+
+function renderStaffTasks(){
+  const { staleItems, unlistedItems, lowMarginItems } = detectBusinessRisks();
+  const today = new Date();
+  const daysSince = d => Math.floor((today-new Date(d))/86400000);
+  const tasks = [];
+  unlistedItems.forEach(p=> tasks.push({icon:'📝', id:p.id,
+    text:`「${escapeHtml(p.name)}」は仕入れから${daysSince(p.purchaseDate)}日経過、まだ出品されていません。出品文を作成して出品しましょう。`}));
+  staleItems.forEach(p=> tasks.push({icon:'🚨', id:p.id,
+    text:`「${escapeHtml(p.name)}」は仕入れから${daysSince(p.purchaseDate)}日経過、未売却です。値下げ・セット販売・処分を検討しましょう。`}));
+  lowMarginItems.forEach(p=>{
+    const r = computeProduct(p);
+    tasks.push({icon:'💰', id:p.id, text:`「${escapeHtml(p.name)}」はROI${Math.round(r.roiPct)}%と低採算です。価格の見直しを検討しましょう。`});
+  });
+
+  const wrap = document.getElementById('staffTasks');
+  if(tasks.length===0){
+    wrap.innerHTML = `<div class="empty-state"><span class="ic">✅</span>現在、緊急のタスクはありません。</div>`;
+    return;
+  }
+  wrap.innerHTML = tasks.map(t=>`
+    <div class="check-item">
+      <span style="font-size:1.1rem;">${t.icon}</span>
+      <label style="cursor:default;flex:1;">${t.text}</label>
+      <button class="icon-btn" onclick="jumpToInventoryItem('${t.id}')" title="在庫で確認する">在庫を見る →</button>
+    </div>
+  `).join('');
+}
+function jumpToInventoryItem(id){
+  document.querySelector('.tab-btn[data-tab="inventory"]').click();
+  setTimeout(()=>openEditProductForm(id), 200);
 }
 
 /* ============================================================
@@ -1639,6 +1851,7 @@ function renderAll(){
   renderAnalytics();
   renderSettingsTab();
   renderRoadmapChecklists();
+  renderStaffTasks();
 }
 loadState();
 if(products.length===0){
