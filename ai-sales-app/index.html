@@ -410,6 +410,64 @@ canvas{max-width:100%;}
       <div id="researchComment" style="margin-top:14px;font-size:0.85rem;line-height:1.8;color:var(--text2);"></div>
     </div>
   </div>
+
+  <div class="card">
+    <h3><span class="ic">🛰️</span>自動リサーチ（楽天市場API連携）</h3>
+    <p style="font-size:0.82rem;color:var(--text2);margin-bottom:6px;">
+      キーワードと「これなら売れる」という想定売価を登録しておくと、楽天市場の実売価格を自動で見に行き、差額がしきい値（設定タブ）以上ならリサーチ担当のログに記録します。<b>購入は自動化していません</b>——見つけた候補を確認し、実際に買うかどうかはあなたが判断・実行してください。
+    </p>
+    <div class="disclaimer" style="margin-top:10px;">
+      ⚠️ 対応は楽天市場のみです（Amazon・メルカリ・ヤフオクは個人が使える公式の商品検索APIが無いか、規約上スクレイピングが推奨できないため未対応）。この機能はJSONPという方式でブラウザから直接楽天のサーバーに接続します。<b>お使いのブラウザで直接このファイルを開いている場合は動作しますが、Claudeのアーティファクト（プレビュー）画面上ではセキュリティ制限により動作しません。</b>自動スキャンは<b>このタブを開いている間だけ</b>動作し、閉じると止まります。
+    </div>
+
+    <div class="form-row" style="margin-top:16px;">
+      <div class="field">
+        <label>楽天ウェブサービス アプリID</label>
+        <input type="text" id="rakutenAppId" placeholder="楽天デベロッパーで無料発行できるID">
+        <div class="field-hint"><a href="https://webservice.rakuten.co.jp/" target="_blank" rel="noopener" style="color:var(--accent2);">webservice.rakuten.co.jp</a> で無料登録すると発行されます。この端末のブラウザにのみ保存されます。</div>
+      </div>
+      <div class="field" style="align-self:flex-end;">
+        <button class="btn btn-ghost btn-sm" onclick="saveRakutenSettings()">💾 アプリIDを保存</button>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="field">
+        <label>監視キーワード</label>
+        <input type="text" id="watchKeyword" placeholder="例：Nintendo Switch 未使用">
+      </div>
+      <div class="field">
+        <label>想定売価（円）</label>
+        <input type="number" id="watchTargetPrice" placeholder="例：25000">
+      </div>
+      <div class="field">
+        <label>ジャンルID（任意）</label>
+        <input type="text" id="watchGenreId" placeholder="絞り込みたい場合のみ">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost btn-sm" onclick="addWatchItem()">＋ ウォッチリストに追加</button>
+      <button class="btn btn-primary btn-sm" onclick="scanAllWatchlist()">🔍 今すぐ全件スキャン</button>
+    </div>
+
+    <div id="watchlistTable" style="margin-top:14px;"></div>
+
+    <div class="form-row" style="margin-top:16px;align-items:end;">
+      <div class="field">
+        <label>自動スキャン間隔</label>
+        <select id="autoScanInterval" onchange="updateAutoScanInterval(this.value)">
+          <option value="30">30分ごと</option>
+          <option value="60">60分ごと</option>
+          <option value="180">3時間ごと</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>自動スキャン</label>
+        <button class="btn btn-ghost btn-sm" id="autoScanToggleBtn" onclick="toggleAutoScan()">⏸ OFF（クリックで開始）</button>
+      </div>
+    </div>
+    <div id="autoScanStatus" style="margin-top:10px;font-size:0.8rem;color:var(--text3);"></div>
+  </div>
 </section>
 
 <!-- ==================== INVENTORY ==================== -->
@@ -795,6 +853,11 @@ const LS_ROADMAP  = 'aiSalesPilot_roadmap_v1';
 const LS_AI       = 'aiSalesPilot_aiSettings_v1';
 const LS_IS_SAMPLE = 'aiSalesPilot_isSample_v1';
 const LS_DIFF_LOG = 'aiSalesPilot_diffLog_v1';
+const LS_WATCHLIST = 'aiSalesPilot_watchlist_v1';
+const LS_AUTOSCAN = 'aiSalesPilot_autoscan_v1';
+const LS_RAKUTEN = 'aiSalesPilot_rakutenSettings_v1';
+const RAKUTEN_SEARCH_ENDPOINT = 'https://app.rakuten.co.jp/services/api/IchibaItem/Search/20220601';
+const RAKUTEN_CALL_SPACING_MS = 1100; // stay under the ~1 req/sec free-tier rate limit
 
 const PLATFORMS = ['Amazon','メルカリ','ヤフオク!','楽天ラクマ','BASE/自社EC','その他'];
 const DEFAULT_FEES = {
@@ -809,6 +872,9 @@ let products = [];
 let settings = { fees: {...DEFAULT_FEES}, diffAlertThreshold: DEFAULT_DIFF_THRESHOLD };
 let editingId = null;
 let pendingDiffProduct = null;
+let watchlist = [];
+let autoScanTimer = null;
+let autoScanRunning = false;
 
 // Optional: when this page runs inside the Claude Artifact viewer, `window.claude` is present
 // and offering a save through it (instead of a plain <a download> link, which the viewer
@@ -827,7 +893,17 @@ function loadState(){
     // diffAlertThreshold existed still gets a sane default instead of undefined.
     if(s && s.fees) settings = { ...settings, ...s, fees: { ...DEFAULT_FEES, ...s.fees } };
   }catch(e){}
+  try{ watchlist = JSON.parse(localStorage.getItem(LS_WATCHLIST)) || []; }catch(e){ watchlist = []; }
 }
+function saveWatchlist(){ localStorage.setItem(LS_WATCHLIST, JSON.stringify(watchlist)); }
+function loadRakutenSettings(){
+  try{ return JSON.parse(localStorage.getItem(LS_RAKUTEN)) || {}; }catch(e){ return {}; }
+}
+function loadAutoScanSettings(){
+  try{ return JSON.parse(localStorage.getItem(LS_AUTOSCAN)) || { enabled:false, intervalMin:60 }; }
+  catch(e){ return { enabled:false, intervalMin:60 }; }
+}
+function saveAutoScanSettings(s){ localStorage.setItem(LS_AUTOSCAN, JSON.stringify(s)); }
 function saveProducts(){ localStorage.setItem(LS_PRODUCTS, JSON.stringify(products)); }
 function saveSettings(){ localStorage.setItem(LS_SETTINGS, JSON.stringify(settings)); }
 
@@ -905,6 +981,9 @@ function verdictFor(roiPct, marginPct, profit){
 function initResearchForm(){
   fillPlatformSelect(document.getElementById('rPlatform'));
   onPlatformChange('r');
+  document.getElementById('rakutenAppId').value = loadRakutenSettings().appId || '';
+  renderWatchlist();
+  renderAutoScanUI();
 }
 let lastResearch = null;
 function readResearchForm(){
@@ -984,18 +1063,219 @@ function checkDiffAlert(p, r){
   const threshold = Number(settings.diffAlertThreshold) || DEFAULT_DIFF_THRESHOLD;
   const diff = (Number(p.sellPrice)||0) - (Number(p.costPrice)||0); // raw per-unit buy/sell gap, before fees/shipping
   if(diff < threshold) return;
-  logHighDiff(p, r, diff);
+  logHighDiff(p, r, diff, 'research');
   showDiffAlertModal(p, r, diff);
 }
-function logHighDiff(p, r, diff){
+// Stores a full purchasable snapshot (not just display numbers) so any past log row —
+// from a manual research calc or an automatic watchlist scan — can later be turned into
+// an inventory entry via addLogEntryToInventory(), even if its popup was dismissed/missed.
+function logHighDiff(p, r, diff, source){
   let log = [];
   try{ log = JSON.parse(localStorage.getItem(LS_DIFF_LOG)) || []; }catch(e){}
   log.unshift({
-    name: p.name, category: p.category, platform: p.platform,
+    id: uid(), source: source || 'research',
+    name: p.name, category: p.category || 'その他', platform: p.platform || 'その他',
+    costPrice: Number(p.costPrice)||0, sellPrice: Number(p.sellPrice)||0, feePct: Number(p.feePct)||0,
+    qty: Number(p.qty)||1, inShip: Number(p.inShip)||0, outShip: Number(p.outShip)||0, adCost: Number(p.adCost)||0,
+    sourceUrl: p.sourceUrl || '',
     diff: Math.round(diff), profit: Math.round(r.profit), roiPct: Math.round(r.roiPct),
     date: new Date().toISOString()
   });
-  localStorage.setItem(LS_DIFF_LOG, JSON.stringify(log.slice(0,20)));
+  localStorage.setItem(LS_DIFF_LOG, JSON.stringify(log.slice(0,40)));
+}
+function addLogEntryToInventory(logId){
+  let log = [];
+  try{ log = JSON.parse(localStorage.getItem(LS_DIFF_LOG)) || []; }catch(e){}
+  const entry = log.find(l=>l.id===logId);
+  if(!entry){ toast('ログが見つかりません'); return; }
+  products.push({
+    id: uid(), name: entry.name, category: entry.category, platform: entry.platform,
+    status: '仕入れ検討中', costPrice: entry.costPrice, qty: entry.qty, inShip: entry.inShip,
+    sellPrice: entry.sellPrice, feePct: entry.feePct, outShip: entry.outShip, adCost: entry.adCost,
+    purchaseDate:'', soldDate:'', supplier: entry.source==='auto' ? '楽天市場（自動リサーチ）' : '',
+    memo: entry.source==='auto' ? '自動リサーチで検出' : '差額アラートログから登録',
+    sourceUrl: entry.sourceUrl
+  });
+  saveProducts();
+  markRealDataEntered();
+  renderInventory(); renderDashboard(); renderStaffTasks();
+  toast('在庫に「仕入れ検討中」として登録しました');
+}
+
+/* ============================================================
+   AUTO RESEARCH: Rakuten Ichiba item search via JSONP.
+   Rakuten's API does not send CORS headers for a browser fetch(), but it does support
+   ?callback= (JSONP), which loads as a <script> tag rather than an XHR/fetch and so is not
+   subject to CORS at all. That script load is itself blocked by the Claude Artifact
+   viewer's script-src allowlist though — so this works when the page is opened directly in
+   a browser (or self-hosted), but not inside the Artifact preview. checkRakutenReachable()
+   surfaces that distinction instead of failing silently.
+   ============================================================ */
+let rakutenJsonpSeq = 0;
+function rakutenSearchJsonp(keyword, genreId){
+  return new Promise((resolve, reject)=>{
+    const appId = (loadRakutenSettings().appId || '').trim();
+    if(!appId){ reject(new Error('楽天アプリIDが未設定です（上の欄に入力して保存してください）')); return; }
+    const cbName = 'rakutenJsonp_' + (rakutenJsonpSeq++) + '_' + Date.now();
+    let done = false;
+    const scriptEl = document.createElement('script');
+    const cleanup = ()=>{
+      delete window[cbName];
+      if(scriptEl.parentNode) scriptEl.parentNode.removeChild(scriptEl);
+      clearTimeout(timer);
+    };
+    window[cbName] = (data)=>{
+      if(done) return; done = true;
+      cleanup();
+      resolve(data);
+    };
+    const params = new URLSearchParams({
+      format: 'json', formatVersion: '2', keyword, applicationId: appId,
+      hits: '10', sort: '+itemPrice', availability: '1', callback: cbName,
+    });
+    if(genreId) params.set('genreId', genreId);
+    scriptEl.src = RAKUTEN_SEARCH_ENDPOINT + '?' + params.toString();
+    scriptEl.onerror = ()=>{
+      if(done) return; done = true;
+      cleanup();
+      reject(new Error('APIへの接続に失敗しました。Claudeのアーティファクト画面内で開いている場合はこの制限が原因の可能性が高いです。ファイルを直接ブラウザで開いてお試しください。'));
+    };
+    const timer = setTimeout(()=>{
+      if(done) return; done = true;
+      cleanup();
+      reject(new Error('タイムアウトしました（10秒応答なし）'));
+    }, 10000);
+    document.head.appendChild(scriptEl);
+  });
+}
+function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+function renderWatchlist(){
+  const wrap = document.getElementById('watchlistTable');
+  if(watchlist.length===0){
+    wrap.innerHTML = `<div class="empty-state" style="padding:16px 0;"><span class="ic">🛰️</span>まだウォッチリストが空です。キーワードと想定売価を登録してください。</div>`;
+    return;
+  }
+  wrap.innerHTML = `<div class="table-wrap"><table><thead><tr>
+    <th>キーワード</th><th>ジャンルID</th><th>想定売価</th><th>最終結果</th><th></th>
+  </tr></thead><tbody>
+    ${watchlist.map(w=>`<tr>
+      <td>${escapeHtml(w.keyword)}</td>
+      <td>${w.genreId?escapeHtml(w.genreId):'—'}</td>
+      <td>${yen(w.targetPrice)}</td>
+      <td>${w.lastResult ? escapeHtml(w.lastResult) : '未実行'}</td>
+      <td><button class="icon-btn" onclick="deleteWatchItem('${w.id}')" title="削除">🗑️</button></td>
+    </tr>`).join('')}
+  </tbody></table></div>`;
+}
+function addWatchItem(){
+  const keyword = document.getElementById('watchKeyword').value.trim();
+  const targetPrice = Number(document.getElementById('watchTargetPrice').value);
+  const genreId = document.getElementById('watchGenreId').value.trim();
+  if(!keyword || !targetPrice){ toast('キーワードと想定売価を入力してください'); return; }
+  watchlist.push({ id: uid(), keyword, targetPrice, genreId });
+  saveWatchlist();
+  document.getElementById('watchKeyword').value = '';
+  document.getElementById('watchTargetPrice').value = '';
+  document.getElementById('watchGenreId').value = '';
+  renderWatchlist();
+  applyAutoScanSchedule();
+  toast('ウォッチリストに追加しました');
+}
+function deleteWatchItem(id){
+  watchlist = watchlist.filter(w=>w.id!==id);
+  saveWatchlist();
+  renderWatchlist();
+  applyAutoScanSchedule();
+}
+function saveRakutenSettings(){
+  localStorage.setItem(LS_RAKUTEN, JSON.stringify({ appId: document.getElementById('rakutenAppId').value.trim() }));
+  toast('アプリIDを保存しました');
+  applyAutoScanSchedule();
+}
+
+// Runs every watch item once, sequentially (spaced out to respect the free-tier rate
+// limit). Any find is logged (source:'auto') and toasted — never a blocking modal, since
+// this can run unattended while nobody is looking at the screen.
+async function scanAllWatchlist(){
+  if(watchlist.length===0){ toast('ウォッチリストが空です'); return; }
+  if(!(loadRakutenSettings().appId||'').trim()){ toast('楽天アプリIDを入力・保存してください'); return; }
+  const statusEl = document.getElementById('autoScanStatus');
+  let foundCount = 0, errorCount = 0;
+  for(let i=0;i<watchlist.length;i++){
+    const w = watchlist[i];
+    if(statusEl) statusEl.textContent = `スキャン中… (${i+1}/${watchlist.length}) ${w.keyword}`;
+    try{
+      const data = await rakutenSearchJsonp(w.keyword, w.genreId);
+      if(data && data.error){ throw new Error(data.error_description || data.error); }
+      const items = (data && data.Items) || [];
+      if(items.length===0){
+        w.lastResult = '該当なし';
+      } else {
+        const cheapest = items[0]; // sort=+itemPrice already ascending
+        const cost = Number(cheapest.itemPrice)||0;
+        const diff = w.targetPrice - cost;
+        w.lastResult = `最安¥${cost.toLocaleString('ja-JP')}（差額${yen(diff)}）`;
+        const threshold = Number(settings.diffAlertThreshold) || DEFAULT_DIFF_THRESHOLD;
+        if(diff >= threshold){
+          const p = {
+            name: cheapest.itemName, category:'その他', platform:'その他',
+            qty:1, costPrice:cost, inShip:0, sellPrice:w.targetPrice,
+            feePct: settings.fees['その他'] ?? 8, outShip:0, adCost:0, sourceUrl: cheapest.itemUrl,
+          };
+          const r = computeProduct(p);
+          logHighDiff(p, r, diff, 'auto');
+          foundCount++;
+        }
+      }
+    }catch(e){
+      w.lastResult = 'エラー：' + e.message;
+      errorCount++;
+    }
+    saveWatchlist();
+    renderWatchlist();
+    if(i < watchlist.length-1) await sleep(RAKUTEN_CALL_SPACING_MS);
+  }
+  renderStaffTasks();
+  const now = new Date().toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  if(statusEl) statusEl.textContent = `最終実行：${now}（検出${foundCount}件／エラー${errorCount}件）`;
+  if(foundCount>0) toast(`🛰️ 自動リサーチで${foundCount}件の候補を検出しました（AI組織タブのリサーチ担当ログを確認）`);
+  else if(errorCount===0) toast('自動リサーチ完了：しきい値超えの候補は見つかりませんでした');
+}
+
+function renderAutoScanUI(){
+  const s = loadAutoScanSettings();
+  const intervalSel = document.getElementById('autoScanInterval');
+  if(intervalSel) intervalSel.value = String(s.intervalMin || 60);
+  const btn = document.getElementById('autoScanToggleBtn');
+  if(btn){
+    btn.textContent = s.enabled ? '▶ ON（クリックで停止）' : '⏸ OFF（クリックで開始）';
+    btn.className = s.enabled ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm';
+  }
+}
+function toggleAutoScan(){
+  const s = loadAutoScanSettings();
+  s.enabled = !s.enabled;
+  saveAutoScanSettings(s);
+  renderAutoScanUI();
+  applyAutoScanSchedule();
+  toast(s.enabled ? '自動スキャンを開始しました（このタブを開いている間のみ動作）' : '自動スキャンを停止しました');
+}
+function updateAutoScanInterval(min){
+  const s = loadAutoScanSettings();
+  s.intervalMin = Math.max(15, Number(min)||60);
+  saveAutoScanSettings(s);
+  applyAutoScanSchedule();
+}
+function applyAutoScanSchedule(){
+  if(autoScanTimer){ clearInterval(autoScanTimer); autoScanTimer = null; }
+  const s = loadAutoScanSettings();
+  if(!s.enabled || watchlist.length===0) return;
+  autoScanTimer = setInterval(()=>{
+    if(autoScanRunning) return;
+    autoScanRunning = true;
+    scanAllWatchlist().finally(()=>{ autoScanRunning = false; });
+  }, s.intervalMin*60000);
 }
 function showDiffAlertModal(p, r, diff){
   pendingDiffProduct = p;
@@ -1672,15 +1952,17 @@ function renderStaffTasks(){
   try{ diffLog = JSON.parse(localStorage.getItem(LS_DIFF_LOG)) || []; }catch(e){}
   const logWrap = document.getElementById('researchStaffLog');
   if(diffLog.length===0){
-    logWrap.innerHTML = `<div class="empty-state" style="padding:16px 0;"><span class="ic">🔍</span>まだ検出履歴はありません。「商品リサーチ」でシミュレーションすると、しきい値以上の商品がここに記録されます。</div>`;
+    logWrap.innerHTML = `<div class="empty-state" style="padding:16px 0;"><span class="ic">🔍</span>まだ検出履歴はありません。「商品リサーチ」でシミュレーションするか、下の自動リサーチを使うと、しきい値以上の商品がここに記録されます。</div>`;
   } else {
-    logWrap.innerHTML = `<div class="table-wrap"><table><thead><tr><th>検出日時</th><th>商品名</th><th>差額</th><th>実質利益</th><th>ROI</th></tr></thead><tbody>
+    logWrap.innerHTML = `<div class="table-wrap"><table><thead><tr><th>検出</th><th>検出日時</th><th>商品名</th><th>差額</th><th>実質利益</th><th>ROI</th><th></th></tr></thead><tbody>
       ${diffLog.map(l=>`<tr>
+        <td><span class="pill ${l.source==='auto'?'blue':'gray'}">${l.source==='auto'?'🛰️自動':'🔍手動'}</span></td>
         <td>${new Date(l.date).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
-        <td>${escapeHtml(l.name)}</td>
+        <td>${escapeHtml(l.name)}${l.sourceUrl?` <a href="${escapeAttr(l.sourceUrl)}" target="_blank" rel="noopener">🔗</a>`:''}</td>
         <td style="color:#34D399;font-weight:700;">${yen(l.diff)}</td>
         <td>${yen(l.profit)}</td>
         <td>${l.roiPct}%</td>
+        <td><button class="icon-btn" onclick="addLogEntryToInventory('${l.id}')" title="在庫に登録">📦</button></td>
       </tr>`).join('')}
     </tbody></table></div>`;
   }
@@ -1937,7 +2219,7 @@ function updateDiffThreshold(val){
    DATA MANAGEMENT
    ============================================================ */
 async function exportData(){
-  const data = { products, settings, roadmap: JSON.parse(localStorage.getItem(LS_ROADMAP)||'{}'), exportedAt: new Date().toISOString() };
+  const data = { products, settings, watchlist, roadmap: JSON.parse(localStorage.getItem(LS_ROADMAP)||'{}'), exportedAt: new Date().toISOString() };
   const json = JSON.stringify(data, null, 2);
   const filename = 'ai-sales-pilot-backup-' + new Date().toISOString().slice(0,10) + '.json';
   if(downloadsCap){
@@ -1969,10 +2251,13 @@ function importData(evt){
       const data = JSON.parse(e.target.result);
       if(Array.isArray(data.products)) products = data.products;
       if(data.settings && data.settings.fees) settings = data.settings;
+      if(Array.isArray(data.watchlist)) watchlist = data.watchlist;
       if(data.roadmap) localStorage.setItem(LS_ROADMAP, JSON.stringify(data.roadmap));
-      saveProducts(); saveSettings();
+      saveProducts(); saveSettings(); saveWatchlist();
       markRealDataEntered();
       renderAll();
+      renderWatchlist();
+      applyAutoScanSchedule();
       toast('インポートしました');
     }catch(err){
       alert('ファイルの読み込みに失敗しました：' + err.message);
@@ -2092,6 +2377,7 @@ if(products.length===0){
 }
 initResearchForm();
 renderAll();
+applyAutoScanSchedule(); // resumes a previously-enabled auto-scan for this browser tab
 window.addEventListener('resize', ()=>{ renderDashboard(); if(document.getElementById('tab-analytics').classList.contains('active')) renderAnalytics(); });
 </script>
 </body>
