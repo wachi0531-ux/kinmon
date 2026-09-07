@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🚀 AI SALES PILOT ～AI物販オートパイロット～</title>
+<style>
+/* ============================================================
+   GLOBAL RESET & BASE
+   ============================================================ */
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0a0e14;--bg2:#0d1420;--panel:rgba(255,255,255,0.045);--panel2:rgba(255,255,255,0.08);
+  --border:rgba(16,185,129,0.25);--border2:rgba(6,182,212,0.3);
+  --accent:#10B981;--accent2:#06B6D4;--gold:#F59E0B;--danger:#EF4444;--purple:#8B5CF6;
+  --text:#E5E7EB;--text2:#8A96A3;--text3:#5B6472;
+}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Hiragino Kaku Gothic ProN','Meiryo',-apple-system,sans-serif;
+  background:var(--bg);color:var(--text);min-height:100vh;
+  padding-bottom:40px;
+}
+a{color:inherit;}
+button{font-family:inherit;}
+input,select,textarea{font-family:inherit;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:rgba(16,185,129,0.35);border-radius:3px;}
+
+/* ============================================================
+   HEADER / NAV
+   ============================================================ */
+#appHeader{
+  position:sticky;top:0;z-index:100;
+  background:linear-gradient(180deg,#0d1420,rgba(13,20,32,0.96));
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(10px);
+}
+.header-top{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 20px 10px;
+  max-width:1200px;margin:0 auto;
+}
+.header-logo{font-size:1.8rem;filter:drop-shadow(0 0 10px rgba(16,185,129,0.6));}
+.header-title{
+  font-size:clamp(1.05rem,3vw,1.4rem);font-weight:900;
+  background:linear-gradient(135deg,#10B981,#06B6D4);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:0.02em;
+}
+.header-sub{font-size:0.68rem;color:var(--text2);letter-spacing:0.08em;margin-top:2px;}
+.header-goal-chip{
+  margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;
+}
+.goal-chip{
+  background:var(--panel);border:1px solid var(--border);border-radius:14px;
+  padding:5px 12px;font-size:0.7rem;color:var(--text2);white-space:nowrap;
+}
+.goal-chip b{color:var(--accent);}
+.tab-bar{
+  display:flex;gap:4px;overflow-x:auto;padding:0 14px 10px;max-width:1200px;margin:0 auto;
+  scrollbar-width:none;
+}
+.tab-bar::-webkit-scrollbar{display:none;}
+.tab-btn{
+  flex-shrink:0;background:transparent;border:1px solid transparent;color:var(--text2);
+  padding:8px 14px;border-radius:20px;font-size:0.82rem;cursor:pointer;
+  transition:all .2s;white-space:nowrap;font-weight:600;
+}
+.tab-btn:hover{color:var(--text);background:var(--panel);}
+.tab-btn.active{
+  background:linear-gradient(135deg,rgba(16,185,129,0.22),rgba(6,182,212,0.14));
+  border-color:var(--accent);color:#6EE7B7;
+}
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+main{max-width:1200px;margin:0 auto;padding:20px 16px 60px;}
+.tab-panel{display:none;animation:fadeIn .35s ease;}
+.tab-panel.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+.panel-title{font-size:1.25rem;font-weight:800;color:#fff;margin-bottom:4px;display:flex;align-items:center;gap:8px;}
+.panel-desc{font-size:0.85rem;color:var(--text2);margin-bottom:20px;line-height:1.6;}
+
+.card{
+  background:var(--panel);border:1px solid rgba(255,255,255,0.08);border-radius:16px;
+  padding:20px;margin-bottom:18px;
+}
+.card h3{font-size:0.95rem;font-weight:800;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.card h3 .ic{font-size:1.1rem;}
+
+.grid{display:grid;gap:16px;}
+.grid-2{grid-template-columns:repeat(auto-fit,minmax(260px,1fr));}
+.grid-3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));}
+.grid-4{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));}
+
+/* KPI */
+.kpi{
+  background:linear-gradient(160deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01));
+  border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px;
+  position:relative;overflow:hidden;
+}
+.kpi-label{font-size:0.72rem;color:var(--text2);margin-bottom:6px;letter-spacing:0.03em;}
+.kpi-value{font-size:1.5rem;font-weight:900;color:#fff;}
+.kpi-value.pos{color:#34D399;}
+.kpi-value.neg{color:#F87171;}
+.kpi-sub{font-size:0.72rem;color:var(--text3);margin-top:4px;}
+
+/* Progress */
+.progress-wrap{margin-bottom:14px;}
+.progress-label{display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:6px;color:var(--text2);}
+.progress-label b{color:var(--text);}
+.progress-bar{height:12px;border-radius:6px;background:rgba(255,255,255,0.07);overflow:hidden;}
+.progress-fill{height:100%;border-radius:6px;transition:width 1s ease;background:linear-gradient(90deg,#10B981,#06B6D4);}
+.progress-fill.gold{background:linear-gradient(90deg,#F59E0B,#FDE68A);}
+
+/* Forms */
+.form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px;}
+.field label{display:block;font-size:0.78rem;color:var(--text2);margin-bottom:6px;font-weight:600;}
+.field input,.field select,.field textarea{
+  width:100%;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.12);
+  border-radius:10px;padding:10px 12px;color:var(--text);font-size:0.9rem;outline:none;transition:all .2s;
+}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(16,185,129,0.15);}
+.field select option{background:#0d1420;}
+.field-hint{font-size:0.7rem;color:var(--text3);margin-top:4px;}
+
+.btn{
+  border:none;border-radius:12px;padding:11px 22px;font-size:0.9rem;font-weight:800;
+  cursor:pointer;transition:all .2s;letter-spacing:0.02em;
+}
+.btn-primary{background:linear-gradient(135deg,#10B981,#06B6D4);color:#04140f;box-shadow:0 4px 20px rgba(16,185,129,0.3);}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(16,185,129,0.45);}
+.btn-ghost{background:var(--panel);border:1px solid rgba(255,255,255,0.15);color:var(--text);}
+.btn-ghost:hover{border-color:var(--accent);color:#6EE7B7;}
+.btn-danger{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#F87171;}
+.btn-danger:hover{background:rgba(239,68,68,0.25);}
+.btn-sm{padding:6px 12px;font-size:0.75rem;border-radius:8px;}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;}
+
+/* Result / verdict */
+.verdict{
+  border-radius:14px;padding:16px 18px;margin-bottom:14px;font-weight:800;font-size:1rem;
+  display:flex;align-items:center;gap:10px;
+}
+.verdict.good{background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.4);color:#6EE7B7;}
+.verdict.warn{background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);color:#FCD34D;}
+.verdict.bad{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#FCA5A5;}
+
+.stat-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);font-size:0.88rem;}
+.stat-row:last-child{border-bottom:none;}
+.stat-row .v{font-weight:800;color:#fff;}
+.stat-row .v.pos{color:#34D399;}
+.stat-row .v.neg{color:#F87171;}
+
+/* Table */
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:0.82rem;min-width:760px;}
+th,td{padding:9px 10px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.07);white-space:nowrap;}
+th{color:var(--text2);font-weight:700;font-size:0.72rem;letter-spacing:0.03em;text-transform:uppercase;}
+tbody tr:hover{background:rgba(255,255,255,0.03);}
+.pill{display:inline-block;padding:3px 10px;border-radius:10px;font-size:0.7rem;font-weight:700;}
+.pill.blue{background:rgba(6,182,212,0.15);color:#67E8F9;}
+.pill.green{background:rgba(16,185,129,0.15);color:#6EE7B7;}
+.pill.gray{background:rgba(255,255,255,0.08);color:var(--text2);}
+.pill.red{background:rgba(239,68,68,0.15);color:#FCA5A5;}
+.icon-btn{background:none;border:none;color:var(--text2);cursor:pointer;font-size:0.95rem;padding:4px 6px;}
+.icon-btn:hover{color:var(--accent);}
+
+/* filter bar */
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+.filter-bar select{background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.12);color:var(--text);border-radius:10px;padding:8px 12px;font-size:0.82rem;}
+
+/* Checklist (roadmap) */
+.phase-block{margin-bottom:18px;}
+.phase-title{font-size:0.95rem;font-weight:800;color:var(--accent2);margin-bottom:4px;display:flex;align-items:center;gap:8px;}
+.phase-sub{font-size:0.75rem;color:var(--text3);margin-bottom:10px;}
+.check-item{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.85rem;line-height:1.6;}
+.check-item input{margin-top:3px;accent-color:var(--accent);width:16px;height:16px;flex-shrink:0;cursor:pointer;}
+.check-item label{cursor:pointer;}
+.check-item.done label{color:var(--text3);text-decoration:line-through;}
+
+/* Legal cards */
+.legal-card{border-left:3px solid var(--accent2);padding-left:14px;margin-bottom:16px;}
+.legal-card h4{font-size:0.9rem;color:#fff;margin-bottom:6px;}
+.legal-card p{font-size:0.83rem;color:var(--text2);line-height:1.7;}
+.legal-card .tag{display:inline-block;background:rgba(139,92,246,0.18);color:#C4B5FD;font-size:0.65rem;padding:2px 8px;border-radius:8px;margin-bottom:6px;}
+
+.disclaimer{
+  background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:12px;
+  padding:14px 16px;font-size:0.78rem;color:#FCD34D;line-height:1.7;margin-bottom:18px;
+}
+
+/* chat */
+#chatLog{
+  height:260px;overflow-y:auto;background:rgba(0,0,0,0.3);border-radius:12px;padding:14px;
+  margin-bottom:12px;border:1px solid rgba(255,255,255,0.08);
+}
+.chat-msg{margin-bottom:10px;font-size:0.85rem;line-height:1.6;}
+.chat-msg.user{color:#67E8F9;}
+.chat-msg.ai{color:var(--text);}
+.chat-msg .who{font-size:0.7rem;color:var(--text3);display:block;margin-bottom:2px;}
+.chat-input-row{display:flex;gap:8px;}
+.chat-input-row input{flex:1;}
+
+/* advisor report */
+.report-section{margin-bottom:16px;}
+.report-section h4{font-size:0.85rem;color:var(--accent2);margin-bottom:8px;letter-spacing:0.03em;}
+.report-section ul{padding-left:20px;}
+.report-section li{font-size:0.85rem;line-height:1.8;color:var(--text);}
+
+.badge-note{font-size:0.7rem;color:var(--text3);}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:700px){.two-col{grid-template-columns:1fr;}}
+
+canvas{max-width:100%;}
+
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3);font-size:0.85rem;}
+.empty-state .ic{font-size:2.5rem;margin-bottom:10px;display:block;opacity:0.5;}
+
+.toast{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  background:#0d1420;border:1px solid var(--accent);color:#6EE7B7;
+  padding:10px 22px;border-radius:24px;font-size:0.82rem;font-weight:700;
+  z-index:2000;opacity:0;transition:opacity .3s;pointer-events:none;box-shadow:0 6px 24px rgba(0,0,0,0.5);
+}
+.toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<header id="appHeader">
+  <div class="header-top">
+    <div class="header-logo">🚀</div>
+    <div>
+      <div class="header-title">AI SALES PILOT</div>
+      <div class="header-sub">AI物販オートパイロット ｜ 仕入れ〜販売〜利益分析を一元管理</div>
+    </div>
+    <div class="header-goal-chip">
+      <span class="goal-chip">今月利益 <b id="chipProfit">¥0</b></span>
+      <span class="goal-chip">目標達成率 <b id="chipGoalPct">0%</b></span>
+    </div>
+  </div>
+  <nav class="tab-bar" id="tabBar">
+    <button class="tab-btn active" data-tab="dashboard">📊 ダッシュボード</button>
+    <button class="tab-btn" data-tab="research">🔍 商品リサーチ</button>
+    <button class="tab-btn" data-tab="inventory">📦 仕入・在庫</button>
+    <button class="tab-btn" data-tab="listing">🏷️ 出品・価格戦略</button>
+    <button class="tab-btn" data-tab="analytics">📈 売上分析</button>
+    <button class="tab-btn" data-tab="advisor">🤖 AIアドバイザー</button>
+    <button class="tab-btn" data-tab="roadmap">🗺️ 月利50-100万ロードマップ</button>
+    <button class="tab-btn" data-tab="legal">⚖️ 法律・税金</button>
+    <button class="tab-btn" data-tab="settings">⚙️ 設定</button>
+  </nav>
+</header>
+
+<main>
+
+<!-- ==================== DASHBOARD ==================== -->
+<section class="tab-panel active" id="tab-dashboard">
+  <div class="panel-title">📊 経営ダッシュボード</div>
+  <div class="panel-desc">今月の実績と、月利50万円・100万円ゴールへの進捗を一目で確認できます。</div>
+
+  <div class="card">
+    <h3><span class="ic">🎯</span>目標達成プログレス（当月）</h3>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>月利50万円ライン</span><b id="progLabel50">¥0 / ¥500,000</b></div>
+      <div class="progress-bar"><div class="progress-fill" id="progBar50" style="width:0%"></div></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>月利100万円ライン</span><b id="progLabel100">¥0 / ¥1,000,000</b></div>
+      <div class="progress-bar"><div class="progress-fill gold" id="progBar100" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <div class="grid grid-4" id="kpiGrid"></div>
+
+  <div class="grid grid-2" style="margin-top:18px;">
+    <div class="card">
+      <h3><span class="ic">📈</span>月次利益推移（直近6ヶ月）</h3>
+      <canvas id="profitChart" height="200"></canvas>
+    </div>
+    <div class="card">
+      <h3><span class="ic">🗂️</span>カテゴリ別利益シェア</h3>
+      <canvas id="categoryDonutChart" height="200"></canvas>
+      <div id="categoryLegend" style="margin-top:10px;"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><span class="ic">🧪</span>データがまだありませんか？</h3>
+    <p style="font-size:0.85rem;color:var(--text2);margin-bottom:12px;">サンプルデータを投入すると、6ヶ月間の仕入れ〜販売シミュレーションでダッシュボードの動きを確認できます。（後からいつでも全消去できます）</p>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="loadSampleData()">🧪 サンプルデータを投入</button>
+      <button class="btn btn-danger" onclick="clearAllData()">🗑️ 全データを削除</button>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== RESEARCH ==================== -->
+<section class="tab-panel" id="tab-research">
+  <div class="panel-title">🔍 商品リサーチ＆利益シミュレーター</div>
+  <div class="panel-desc">仕入れ前に、手数料・送料まで含めた「本当の利益」を自動計算。ROI・利益率から仕入れ可否をAIが判定します。</div>
+
+  <div class="two-col">
+    <div class="card">
+      <h3><span class="ic">📝</span>商品情報を入力</h3>
+      <div class="form-row">
+        <div class="field">
+          <label>商品名</label>
+          <input type="text" id="rName" placeholder="例：ワイヤレスイヤホン A社製">
+        </div>
+        <div class="field">
+          <label>カテゴリ</label>
+          <select id="rCategory">
+            <option value="家電">家電・ガジェット</option>
+            <option value="ゲーム">ゲーム・ホビー</option>
+            <option value="ファッション">ファッション</option>
+            <option value="コスメ">コスメ・美容</option>
+            <option value="本">本・メディア</option>
+            <option value="おもちゃ">おもちゃ・キャラクター</option>
+            <option value="スポーツ">スポーツ・アウトドア</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>販売プラットフォーム</label>
+          <select id="rPlatform" onchange="onPlatformChange('r')"></select>
+        </div>
+        <div class="field">
+          <label>数量</label>
+          <input type="number" id="rQty" value="1" min="1">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>仕入れ原価（1個あたり）</label>
+          <input type="number" id="rCost" placeholder="例：3000">
+        </div>
+        <div class="field">
+          <label>仕入れ送料・関税（1個あたり）</label>
+          <input type="number" id="rInShip" placeholder="例：300" value="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>想定売価（1個あたり）</label>
+          <input type="number" id="rSell" placeholder="例：6980">
+        </div>
+        <div class="field">
+          <label>販売手数料率（%）</label>
+          <input type="number" id="rFeePct" step="0.1">
+          <div class="field-hint">プラットフォーム選択で自動入力（目安値・編集可）</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>発送・梱包コスト（1個あたり）</label>
+          <input type="number" id="rOutShip" placeholder="例：500" value="0">
+        </div>
+        <div class="field">
+          <label>広告・その他コスト（合計）</label>
+          <input type="number" id="rAdCost" placeholder="例：0" value="0">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="calcResearch()">⚡ 利益をシミュレーション</button>
+        <button class="btn btn-ghost" onclick="addResearchToInventory()">📦 在庫に登録（仕入れ検討中）</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="ic">🤖</span>AI利益診断</h3>
+      <div id="researchVerdict" class="verdict warn">👆 商品情報を入力してシミュレーションしてください</div>
+      <div id="researchStats"></div>
+      <div id="researchComment" style="margin-top:14px;font-size:0.85rem;line-height:1.8;color:var(--text2);"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== INVENTORY ==================== -->
+<section class="tab-panel" id="tab-inventory">
+  <div class="panel-title">📦 仕入・在庫管理</div>
+  <div class="panel-desc">すべての商品のステータス・利益をここで一元管理します。行をクリックすると編集できます。</div>
+
+  <div class="filter-bar">
+    <select id="fltStatus" onchange="renderInventory()">
+      <option value="">ステータス：すべて</option>
+      <option value="仕入れ検討中">仕入れ検討中</option>
+      <option value="仕入れ済み">仕入れ済み</option>
+      <option value="出品中">出品中</option>
+      <option value="売却済み">売却済み</option>
+      <option value="返品/ロス">返品/ロス</option>
+    </select>
+    <select id="fltPlatform" onchange="renderInventory()"><option value="">販路：すべて</option></select>
+    <select id="fltCategory" onchange="renderInventory()">
+      <option value="">カテゴリ：すべて</option>
+      <option value="家電">家電・ガジェット</option>
+      <option value="ゲーム">ゲーム・ホビー</option>
+      <option value="ファッション">ファッション</option>
+      <option value="コスメ">コスメ・美容</option>
+      <option value="本">本・メディア</option>
+      <option value="おもちゃ">おもちゃ・キャラクター</option>
+      <option value="スポーツ">スポーツ・アウトドア</option>
+      <option value="その他">その他</option>
+    </select>
+    <button class="btn btn-ghost btn-sm" onclick="openNewProductForm()">＋ 新規商品を追加</button>
+  </div>
+
+  <div id="editFormWrap" style="display:none;" class="card"></div>
+
+  <div class="card">
+    <div class="table-wrap" id="inventoryTableWrap"></div>
+  </div>
+  <div class="card" id="inventorySummary"></div>
+</section>
+
+<!-- ==================== LISTING & PRICING ==================== -->
+<section class="tab-panel" id="tab-listing">
+  <div class="panel-title">🏷️ 出品文AI生成＆価格戦略</div>
+  <div class="panel-desc">在庫の商品から出品文をテンプレート生成し、競合価格をもとに最適な出品価格を計算します。</div>
+
+  <div class="two-col">
+    <div class="card">
+      <h3><span class="ic">✍️</span>AI出品文ジェネレーター</h3>
+      <div class="field" style="margin-bottom:12px;">
+        <label>商品を選択</label>
+        <select id="listingProductSelect"></select>
+      </div>
+      <div class="field" style="margin-bottom:12px;">
+        <label>アピールポイント（任意・カンマ区切り）</label>
+        <input type="text" id="listingPoints" placeholder="例：未使用に近い,送料無料,即日発送">
+      </div>
+      <div class="btn-row" style="margin-bottom:12px;">
+        <button class="btn btn-primary" onclick="generateListingText()">🤖 出品文を生成</button>
+        <button class="btn btn-ghost btn-sm" onclick="copyListingText()">📋 コピー</button>
+      </div>
+      <textarea id="listingOutput" rows="10" style="width:100%;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:12px;color:var(--text);font-size:0.85rem;line-height:1.7;"></textarea>
+    </div>
+
+    <div class="card">
+      <h3><span class="ic">💹</span>価格戦略シミュレーター</h3>
+      <div class="form-row">
+        <div class="field">
+          <label>損益分岐の総コスト（仕入+送料+手数料など）</label>
+          <input type="number" id="pBreakeven" placeholder="例：4200">
+        </div>
+        <div class="field">
+          <label>最低確保したい利益率（%）</label>
+          <input type="number" id="pMinMargin" value="15">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>競合の最安値</label>
+          <input type="number" id="pCompetitor" placeholder="例：6500">
+        </div>
+        <div class="field">
+          <label>値下げ幅（競合比 %）</label>
+          <input type="number" id="pUndercut" value="2">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="calcPricing()">💰 推奨価格を計算</button>
+      <div id="pricingResult" style="margin-top:16px;"></div>
+      <div class="field-hint" style="margin-top:10px;">
+        考え方：競合最安値からの値下げ価格と、最低利益率を確保できる価格を比較し、高い方（＝利益を削りすぎない方）を推奨します。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== ANALYTICS ==================== -->
+<section class="tab-panel" id="tab-analytics">
+  <div class="panel-title">📈 売上・利益分析</div>
+  <div class="panel-desc">売却済み商品をもとに、月別・販路別・商品別の実績を分析します。</div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <h3><span class="ic">🗓️</span>月別実績</h3>
+      <div class="table-wrap" id="monthlyTable"></div>
+    </div>
+    <div class="card">
+      <h3><span class="ic">🛒</span>販路別 利益シェア</h3>
+      <canvas id="platformChart" height="220"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><span class="ic">🏆</span>利益トップ商品 TOP5</h3>
+    <div class="table-wrap" id="topProductsList"></div>
+  </div>
+</section>
+
+<!-- ==================== AI ADVISOR ==================== -->
+<section class="tab-panel" id="tab-advisor">
+  <div class="panel-title">🤖 AIアドバイザー</div>
+  <div class="panel-desc">蓄積データから経営リスクと次のアクションを自動診断します（オフラインで常に利用可能）。加えて、任意でお手持ちのAI APIキーを接続すれば自然文でも相談できます。</div>
+
+  <div class="card">
+    <h3><span class="ic">📋</span>経営診断レポート</h3>
+    <button class="btn btn-primary" onclick="generateAdvisorReport()">📋 診断レポートを作成する</button>
+    <div id="advisorReport" style="margin-top:18px;"></div>
+  </div>
+
+  <div class="card">
+    <h3><span class="ic">💬</span>AIチャット相談（任意・外部API接続）</h3>
+    <p style="font-size:0.78rem;color:var(--text3);margin-bottom:12px;line-height:1.6;">
+      実験的機能です。「設定」タブでAPIキーを登録すると、ブラウザから直接AIプロバイダーへ質問を送信できます（キーは<b>あなたのブラウザ内のみ</b>に保存され、サーバーには送信されません）。プロバイダー側のCORS制限により接続できない場合は、上の「診断レポート」機能をご利用ください。
+    </p>
+    <div id="chatLog"></div>
+    <div class="chat-input-row">
+      <input type="text" id="chatInput" placeholder="例：今月あと20万円の利益を出すには何を仕入れるべき？" onkeydown="if(event.key==='Enter')sendChat()">
+      <button class="btn btn-primary btn-sm" onclick="sendChat()">送信</button>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== ROADMAP ==================== -->
+<section class="tab-panel" id="tab-roadmap">
+  <div class="panel-title">🗺️ 月利50万〜100万円ロードマップ</div>
+  <div class="disclaimer">
+    ⚠️ 本ツールはあくまで意思決定を支援するシミュレーターです。表示される数値・計画は目安であり、収益や成果を保証するものではありません。実際の利益は市場環境・資金力・仕入れ判断力・実行スピードにより大きく変動します。無理のない資金計画で、余剰資金の範囲内で取り組んでください。
+  </div>
+
+  <div class="card">
+    <h3><span class="ic">🧮</span>目標逆算シミュレーター</h3>
+    <div class="form-row">
+      <div class="field">
+        <label>目標月利（円）</label>
+        <input type="number" id="rmTargetProfit" value="500000">
+      </div>
+      <div class="field">
+        <label>想定利益率（%）</label>
+        <input type="number" id="rmMargin" value="15">
+      </div>
+      <div class="field">
+        <label>月あたりの資金回転数（仕入→売却→再仕入の回数）</label>
+        <input type="number" id="rmTurns" value="1.5" step="0.1">
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="calcRoadmap()">🧮 必要な月商・仕入資金を計算</button>
+    <div id="roadmapCalcResult" style="margin-top:16px;"></div>
+  </div>
+
+  <div class="card" id="roadmapChecklists"></div>
+</section>
+
+<!-- ==================== LEGAL & TAX ==================== -->
+<section class="tab-panel" id="tab-legal">
+  <div class="panel-title">⚖️ 法律・税金チェックリスト</div>
+  <div class="panel-desc">物販ビジネスで特に確認すべきポイントをまとめました。一般的な情報提供であり、個別の法的・税務アドバイスではありません。詳細は税理士・行政書士・最寄りの警察署（生活安全課）等の専門家にご確認ください。</div>
+
+  <div class="card">
+    <div class="legal-card">
+      <span class="tag">許可</span>
+      <h4>🚓 古物商許可</h4>
+      <p>中古品（新古品含む）を継続的に仕入れて転売する場合は、営業所を管轄する警察署（生活安全課）を通じて都道府県公安委員会への「古物商許可」申請が必要です。新品のみを扱う物販であれば原則不要ですが、フリマアプリ等での仕入れを伴う場合は要注意。無許可営業は古物営業法違反となり得ます。</p>
+    </div>
+    <div class="legal-card">
+      <span class="tag">表示義務</span>
+      <h4>📋 特定商取引法に基づく表示</h4>
+      <p>自社ECサイトやネットショップ（BASE・STORES等）を運営する場合、事業者名・住所・連絡先・返品条件などの表示義務があります。フリマ・オークション形式のみの出品でも、事業者とみなされる規模になれば対応が必要になる場合があります。</p>
+    </div>
+    <div class="legal-card">
+      <span class="tag">確定申告</span>
+      <h4>🧾 確定申告・所得区分</h4>
+      <p>給与所得者が副業で得た所得（売上ではなく経費を引いた「利益」）が年間20万円を超える場合、原則として確定申告が必要です。専業の場合は基礎控除等を踏まえて年間所得48万円超が一つの目安になります。継続的・営利目的の物販は「雑所得」ではなく「事業所得」と判断される場合があり、青色申告特別控除などのメリットも検討できます。</p>
+    </div>
+    <div class="legal-card">
+      <span class="tag">消費税</span>
+      <h4>💴 消費税・インボイス制度</h4>
+      <p>課税売上高が1,000万円を超える（原則2年前基準）と消費税の課税事業者になります。インボイス制度により、免税事業者のままだと取引先（仕入先・卸業者等）との関係で不利になるケースもあるため、事業規模拡大時は登録要否を検討しましょう。</p>
+    </div>
+    <div class="legal-card">
+      <span class="tag">出品規制</span>
+      <h4>🚫 プラットフォームの出品制限・商標</h4>
+      <p>Amazon等では医薬品的な効能を謳う商品・食品・電気用品安全法(PSE)対象品などカテゴリごとに出品許可や表示ルールがあります。ブランド品の並行輸入は真贋・商標権侵害のリスクがあるため、仕入れ先の信頼性確認が重要です。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== SETTINGS ==================== -->
+<section class="tab-panel" id="tab-settings">
+  <div class="panel-title">⚙️ 設定</div>
+
+  <div class="card">
+    <h3><span class="ic">💳</span>販売プラットフォーム手数料（目安・編集可）</h3>
+    <div id="feePresetEditor" class="grid grid-3"></div>
+    <div class="field-hint" style="margin-top:10px;">実際の手数料はカテゴリ・会員ランク・配送方法等で変動します。各プラットフォームの最新の手数料ページで随時ご確認ください。</div>
+  </div>
+
+  <div class="card">
+    <h3><span class="ic">🔐</span>AI連携設定（任意・実験的機能）</h3>
+    <p style="font-size:0.78rem;color:var(--text3);margin-bottom:14px;line-height:1.6;">
+      APIキーはこの端末のブラウザ（localStorage）にのみ保存され、入力後は選択したAIプロバイダーへブラウザから直接送信されます。運営者のサーバーを経由することはありません。共有端末では利用後にキーを削除してください。
+    </p>
+    <div class="form-row">
+      <div class="field">
+        <label>プロバイダー</label>
+        <select id="aiProvider">
+          <option value="anthropic">Anthropic Claude</option>
+          <option value="openai">OpenAI互換API</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>モデルID</label>
+        <input type="text" id="aiModel" placeholder="例：claude-sonnet-5">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label>APIキー</label>
+        <input type="password" id="aiApiKey" placeholder="sk-... / API key">
+      </div>
+      <div class="field" id="aiEndpointField" style="display:none;">
+        <label>エンドポイントURL（OpenAI互換の場合）</label>
+        <input type="text" id="aiEndpoint" placeholder="https://api.openai.com/v1">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary btn-sm" onclick="saveAiSettings()">💾 保存</button>
+      <button class="btn btn-ghost btn-sm" onclick="testAiConnection()">🔌 接続テスト</button>
+      <button class="btn btn-danger btn-sm" onclick="clearAiSettings()">キーを削除</button>
+    </div>
+    <div id="aiTestResult" style="margin-top:10px;font-size:0.8rem;"></div>
+  </div>
+
+  <div class="card">
+    <h3><span class="ic">💾</span>データ管理</h3>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="exportData()">⬇️ バックアップをエクスポート（JSON）</button>
+      <label class="btn btn-ghost" style="cursor:pointer;">
+        ⬆️ バックアップをインポート
+        <input type="file" accept="application/json" style="display:none;" onchange="importData(event)">
+      </label>
+      <button class="btn btn-danger" onclick="clearAllData()">🗑️ 全データを削除</button>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* ============================================================
+   CONSTANTS & STATE
+   ============================================================ */
+const LS_PRODUCTS = 'aiSalesPilot_products_v1';
+const LS_SETTINGS = 'aiSalesPilot_settings_v1';
+const LS_ROADMAP  = 'aiSalesPilot_roadmap_v1';
+const LS_AI       = 'aiSalesPilot_aiSettings_v1';
+
+const PLATFORMS = ['Amazon','メルカリ','ヤフオク!','楽天ラクマ','BASE/自社EC','その他'];
+const DEFAULT_FEES = {
+  'Amazon':12, 'メルカリ':10, 'ヤフオク!':10, '楽天ラクマ':6, 'BASE/自社EC':6.6, 'その他':8
+};
+const CATEGORIES = ['家電','ゲーム','ファッション','コスメ','本','おもちゃ','スポーツ','その他'];
+const STATUS_LIST = ['仕入れ検討中','仕入れ済み','出品中','売却済み','返品/ロス'];
+const CAT_COLORS = ['#10B981','#06B6D4','#8B5CF6','#F59E0B','#EF4444','#EC4899','#3B82F6','#84CC16'];
+
+let products = [];
+let settings = { fees: {...DEFAULT_FEES} };
+let editingId = null;
+
+function loadState(){
+  try{ products = JSON.parse(localStorage.getItem(LS_PRODUCTS)) || []; }catch(e){ products = []; }
+  try{ const s = JSON.parse(localStorage.getItem(LS_SETTINGS)); if(s && s.fees) settings = s; }catch(e){}
+}
+function saveProducts(){ localStorage.setItem(LS_PRODUCTS, JSON.stringify(products)); }
+function saveSettings(){ localStorage.setItem(LS_SETTINGS, JSON.stringify(settings)); }
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+function yen(n){ n = Math.round(n||0); return '¥' + n.toLocaleString('ja-JP'); }
+function pct(n){ return (Math.round((n||0)*10)/10) + '%'; }
+function uid(){ return 'p'+Date.now()+Math.floor(Math.random()*10000); }
+
+/* ============================================================
+   TAB NAVIGATION
+   ============================================================ */
+document.getElementById('tabBar').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.tab-btn');
+  if(!btn) return;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+  if(btn.dataset.tab==='dashboard') renderDashboard();
+  if(btn.dataset.tab==='inventory') renderInventory();
+  if(btn.dataset.tab==='listing') renderListingSelect();
+  if(btn.dataset.tab==='analytics') renderAnalytics();
+  if(btn.dataset.tab==='settings') renderSettingsTab();
+  if(btn.dataset.tab==='roadmap') renderRoadmapChecklists();
+});
+
+/* ============================================================
+   PLATFORM SELECT HELPERS
+   ============================================================ */
+function fillPlatformSelect(sel){
+  sel.innerHTML = PLATFORMS.map(p=>`<option value="${p}">${p}</option>`).join('');
+}
+function onPlatformChange(prefix){
+  const platform = document.getElementById(prefix+'Platform').value;
+  const feeField = document.getElementById(prefix+'FeePct');
+  if(feeField) feeField.value = settings.fees[platform] ?? 8;
+}
+
+/* ============================================================
+   PRODUCT CALC ENGINE
+   ============================================================ */
+function computeProduct(p){
+  const qty = Number(p.qty)||1;
+  const revenue = (Number(p.sellPrice)||0) * qty;
+  const platformFee = revenue * (Number(p.feePct)||0) / 100;
+  const cost = (Number(p.costPrice)||0) * qty;
+  const inShip = (Number(p.inShip)||0) * qty;
+  const outShip = (Number(p.outShip)||0) * qty;
+  const adCost = Number(p.adCost)||0;
+  const totalCost = cost + inShip + outShip + adCost + platformFee;
+  const profit = revenue - totalCost;
+  const marginPct = revenue>0 ? (profit/revenue*100) : 0;
+  const investCost = cost + inShip;
+  const roiPct = investCost>0 ? (profit/investCost*100) : 0;
+  const breakeven = qty>0 ? (totalCost - platformFee) / qty / (1-((Number(p.feePct)||0)/100 || 0.0001)) : 0;
+  return { revenue, platformFee, totalCost, profit, marginPct, roiPct, breakeven };
+}
+
+function verdictFor(roiPct, marginPct, profit){
+  if(profit<=0) return {level:'bad', text:'🔴 非推奨：この条件では赤字になります。仕入れ値の交渉か売価の見直しが必要です。'};
+  if(roiPct>=30 && marginPct>=20) return {level:'good', text:'🟢 仕入れ推奨：ROI・利益率ともに良好です。在庫リスクと回転率も確認した上で仕入れを検討しましょう。'};
+  if(roiPct>=15) return {level:'warn', text:'🟡 要検討：利益は出ますが薄利です。まとめ買いによる原価交渉や、送料の見直しで改善できないか確認しましょう。'};
+  return {level:'bad', text:'🔴 非推奨：ROIが低く、価格変動や返品が起きた場合に赤字転落するリスクが高い水準です。'};
+}
+
+/* ============================================================
+   RESEARCH TAB
+   ============================================================ */
+function initResearchForm(){
+  fillPlatformSelect(document.getElementById('rPlatform'));
+  onPlatformChange('r');
+}
+let lastResearch = null;
+function readResearchForm(){
+  return {
+    name: document.getElementById('rName').value || '（無題の商品）',
+    category: document.getElementById('rCategory').value,
+    platform: document.getElementById('rPlatform').value,
+    qty: document.getElementById('rQty').value,
+    costPrice: document.getElementById('rCost').value,
+    inShip: document.getElementById('rInShip').value,
+    sellPrice: document.getElementById('rSell').value,
+    feePct: document.getElementById('rFeePct').value,
+    outShip: document.getElementById('rOutShip').value,
+    adCost: document.getElementById('rAdCost').value,
+  };
+}
+function calcResearch(){
+  const p = readResearchForm();
+  if(!p.costPrice || !p.sellPrice){
+    toast('仕入れ原価と想定売価を入力してください');
+    return;
+  }
+  const r = computeProduct(p);
+  lastResearch = {...p, ...r};
+  const v = verdictFor(r.roiPct, r.marginPct, r.profit);
+  const vEl = document.getElementById('researchVerdict');
+  vEl.className = 'verdict ' + v.level;
+  vEl.textContent = v.text;
+
+  document.getElementById('researchStats').innerHTML = `
+    <div class="stat-row"><span>売上合計</span><span class="v">${yen(r.revenue)}</span></div>
+    <div class="stat-row"><span>販売手数料</span><span class="v">${yen(r.platformFee)}</span></div>
+    <div class="stat-row"><span>コスト合計（仕入+送料+手数料等）</span><span class="v">${yen(r.totalCost)}</span></div>
+    <div class="stat-row"><span>利益</span><span class="v ${r.profit>=0?'pos':'neg'}">${yen(r.profit)}</span></div>
+    <div class="stat-row"><span>利益率</span><span class="v ${r.marginPct>=0?'pos':'neg'}">${pct(r.marginPct)}</span></div>
+    <div class="stat-row"><span>ROI（投下資金に対する利益率）</span><span class="v ${r.roiPct>=0?'pos':'neg'}">${pct(r.roiPct)}</span></div>
+  `;
+  document.getElementById('researchComment').innerHTML = buildResearchComment(p, r, v);
+}
+function buildResearchComment(p, r, v){
+  const lines = [];
+  lines.push(`「${escapeHtml(p.name)}」を${p.platform}で${p.qty}個販売した場合のシミュレーションです。`);
+  if(r.profit>0){
+    lines.push(`1個あたりの利益は約 <b>${yen(r.profit/(Number(p.qty)||1))}</b> です。`);
+  }
+  if(r.roiPct < 15){
+    lines.push('ROIが低めです。①仕入れ値の値下げ交渉、②まとめ買いでの送料圧縮、③他プラットフォームでの高値販路の検討、のいずれかを試しましょう。');
+  } else if(r.roiPct < 30){
+    lines.push('資金回転率（同じ資金で何回仕入れ→販売を回せるか）を高めることで、月間の利益総額を伸ばせます。');
+  } else {
+    lines.push('良好な条件です。ただし在庫が売れ残るリスク・価格競争による値崩れも想定し、仕入れ数量は段階的に増やすことをおすすめします。');
+  }
+  lines.push('※手数料・送料は目安です。実際の値は各プラットフォームの最新情報でご確認ください。');
+  return '<p>' + lines.join('<br><br>') + '</p>';
+}
+function addResearchToInventory(){
+  if(!lastResearch){ calcResearch(); if(!lastResearch) return; }
+  const p = lastResearch;
+  products.push({
+    id: uid(), name: p.name, category: p.category, platform: p.platform, status: '仕入れ検討中',
+    costPrice: p.costPrice, qty: p.qty, inShip: p.inShip, sellPrice: p.sellPrice, feePct: p.feePct,
+    outShip: p.outShip, adCost: p.adCost, purchaseDate:'', soldDate:'', supplier:'', memo:''
+  });
+  saveProducts();
+  toast('在庫に登録しました（仕入れ検討中）');
+}
+
+/* ============================================================
+   INVENTORY TAB
+   ============================================================ */
+function renderFilterSelects(){
+  const platSel = document.getElementById('fltPlatform');
+  if(platSel && platSel.options.length<=1){
+    platSel.innerHTML += PLATFORMS.map(p=>`<option value="${p}">${p}</option>`).join('');
+  }
+}
+function statusPillClass(s){
+  return {'仕入れ検討中':'gray','仕入れ済み':'blue','出品中':'blue','売却済み':'green','返品/ロス':'red'}[s]||'gray';
+}
+function renderInventory(){
+  renderFilterSelects();
+  const fs = document.getElementById('fltStatus').value;
+  const fp = document.getElementById('fltPlatform').value;
+  const fc = document.getElementById('fltCategory').value;
+  let list = products.filter(p=> (!fs||p.status===fs) && (!fp||p.platform===fp) && (!fc||p.category===fc) );
+  list = list.slice().sort((a,b)=> (b.purchaseDate||'').localeCompare(a.purchaseDate||''));
+
+  const wrap = document.getElementById('inventoryTableWrap');
+  if(list.length===0){
+    wrap.innerHTML = `<div class="empty-state"><span class="ic">📭</span>条件に合う商品がありません。「商品リサーチ」または「＋新規商品を追加」から登録しましょう。</div>`;
+  } else {
+    wrap.innerHTML = `<table>
+      <thead><tr>
+        <th>商品名</th><th>カテゴリ</th><th>販路</th><th>ステータス</th>
+        <th>仕入原価</th><th>売価</th><th>利益</th><th>利益率</th><th>ROI</th><th></th>
+      </tr></thead>
+      <tbody>
+        ${list.map(p=>{
+          const r = computeProduct(p);
+          return `<tr onclick="openEditProductForm('${p.id}')" style="cursor:pointer;">
+            <td>${escapeHtml(p.name)}</td>
+            <td>${p.category}</td>
+            <td>${p.platform}</td>
+            <td><span class="pill ${statusPillClass(p.status)}">${p.status}</span></td>
+            <td>${yen(p.costPrice)}</td>
+            <td>${yen(p.sellPrice)}</td>
+            <td style="color:${r.profit>=0?'#34D399':'#F87171'};font-weight:700;">${yen(r.profit)}</td>
+            <td>${pct(r.marginPct)}</td>
+            <td>${pct(r.roiPct)}</td>
+            <td><button class="icon-btn" onclick="event.stopPropagation();deleteProduct('${p.id}')">🗑️</button></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+  }
+
+  const totals = list.reduce((acc,p)=>{
+    const r = computeProduct(p);
+    acc.revenue += r.revenue; acc.cost += r.totalCost; acc.profit += r.profit; return acc;
+  }, {revenue:0,cost:0,profit:0});
+  document.getElementById('inventorySummary').innerHTML = `
+    <h3><span class="ic">Σ</span>表示中商品の合計（${list.length}件）</h3>
+    <div class="grid grid-3">
+      <div class="kpi"><div class="kpi-label">売上合計</div><div class="kpi-value">${yen(totals.revenue)}</div></div>
+      <div class="kpi"><div class="kpi-label">コスト合計</div><div class="kpi-value">${yen(totals.cost)}</div></div>
+      <div class="kpi"><div class="kpi-label">利益合計</div><div class="kpi-value ${totals.profit>=0?'pos':'neg'}">${yen(totals.profit)}</div></div>
+    </div>`;
+}
+function deleteProduct(id){
+  if(!confirm('この商品を削除しますか？')) return;
+  products = products.filter(p=>p.id!==id);
+  saveProducts(); renderInventory(); renderDashboard();
+  toast('削除しました');
+}
+function productFormHtml(p){
+  const isNew = !p.id;
+  return `
+    <h3><span class="ic">${isNew?'➕':'✏️'}</span>${isNew?'新規商品を追加':'商品を編集'}</h3>
+    <div class="form-row">
+      <div class="field"><label>商品名</label><input id="efName" value="${escapeAttr(p.name||'')}"></div>
+      <div class="field"><label>カテゴリ</label><select id="efCategory">${CATEGORIES.map(c=>`<option ${c===p.category?'selected':''}>${c}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>販路</label><select id="efPlatform" onchange="onPlatformChange('ef')">${PLATFORMS.map(pl=>`<option ${pl===p.platform?'selected':''}>${pl}</option>`).join('')}</select></div>
+      <div class="field"><label>ステータス</label><select id="efStatus">${STATUS_LIST.map(s=>`<option ${s===p.status?'selected':''}>${s}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>数量</label><input type="number" id="efQty" value="${p.qty||1}"></div>
+      <div class="field"><label>仕入原価/個</label><input type="number" id="efCost" value="${p.costPrice||''}"></div>
+      <div class="field"><label>仕入送料/個</label><input type="number" id="efInShip" value="${p.inShip||0}"></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>売価/個</label><input type="number" id="efSell" value="${p.sellPrice||''}"></div>
+      <div class="field"><label>販売手数料%</label><input type="number" step="0.1" id="efFeePct" value="${p.feePct ?? (settings.fees[p.platform]||8)}"></div>
+      <div class="field"><label>発送コスト/個</label><input type="number" id="efOutShip" value="${p.outShip||0}"></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>広告等コスト(合計)</label><input type="number" id="efAdCost" value="${p.adCost||0}"></div>
+      <div class="field"><label>仕入日</label><input type="date" id="efPurchaseDate" value="${p.purchaseDate||''}"></div>
+      <div class="field"><label>売却日</label><input type="date" id="efSoldDate" value="${p.soldDate||''}"></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>仕入先メモ</label><input id="efSupplier" value="${escapeAttr(p.supplier||'')}"></div>
+      <div class="field"><label>メモ</label><input id="efMemo" value="${escapeAttr(p.memo||'')}"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveProductForm('${p.id||''}')">💾 保存</button>
+      <button class="btn btn-ghost" onclick="closeProductForm()">キャンセル</button>
+    </div>
+  `;
+}
+function openNewProductForm(){
+  editingId = null;
+  const wrap = document.getElementById('editFormWrap');
+  wrap.style.display = 'block';
+  wrap.innerHTML = productFormHtml({});
+  wrap.scrollIntoView({behavior:'smooth', block:'center'});
+}
+function openEditProductForm(id){
+  editingId = id;
+  const p = products.find(x=>x.id===id);
+  if(!p) return;
+  const wrap = document.getElementById('editFormWrap');
+  wrap.style.display = 'block';
+  wrap.innerHTML = productFormHtml(p);
+  wrap.scrollIntoView({behavior:'smooth', block:'center'});
+}
+function closeProductForm(){
+  editingId = null;
+  document.getElementById('editFormWrap').style.display = 'none';
+}
+function saveProductForm(id){
+  const data = {
+    name: document.getElementById('efName').value || '（無題の商品）',
+    category: document.getElementById('efCategory').value,
+    platform: document.getElementById('efPlatform').value,
+    status: document.getElementById('efStatus').value,
+    qty: document.getElementById('efQty').value,
+    costPrice: document.getElementById('efCost').value,
+    inShip: document.getElementById('efInShip').value,
+    sellPrice: document.getElementById('efSell').value,
+    feePct: document.getElementById('efFeePct').value,
+    outShip: document.getElementById('efOutShip').value,
+    adCost: document.getElementById('efAdCost').value,
+    purchaseDate: document.getElementById('efPurchaseDate').value,
+    soldDate: document.getElementById('efSoldDate').value,
+    supplier: document.getElementById('efSupplier').value,
+    memo: document.getElementById('efMemo').value,
+  };
+  if(id){
+    const idx = products.findIndex(p=>p.id===id);
+    if(idx>=0) products[idx] = {...products[idx], ...data};
+  } else {
+    products.push({id: uid(), ...data});
+  }
+  saveProducts();
+  closeProductForm();
+  renderInventory(); renderDashboard();
+  toast('保存しました');
+}
+
+/* ============================================================
+   LISTING & PRICING TAB
+   ============================================================ */
+function renderListingSelect(){
+  const sel = document.getElementById('listingProductSelect');
+  const listable = products.filter(p=>p.status==='仕入れ済み'||p.status==='出品中'||p.status==='仕入れ検討中');
+  if(listable.length===0){
+    sel.innerHTML = '<option value="">（在庫に商品がありません）</option>';
+    return;
+  }
+  sel.innerHTML = listable.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}（${p.platform}）</option>`).join('');
+}
+function generateListingText(){
+  const id = document.getElementById('listingProductSelect').value;
+  const p = products.find(x=>x.id===id);
+  if(!p){ toast('商品を選択してください'); return; }
+  const points = document.getElementById('listingPoints').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const r = computeProduct(p);
+  const pointsText = points.length ? points.map(pt=>'✅ '+pt).join('\n') : '✅ 状態良好\n✅ 迅速発送\n✅ 丁寧な梱包';
+  const title = `【${p.category}】${p.name}｜${points[0]||'お得な一点'}`;
+  const body =
+`${title}
+
+${pointsText}
+
+■商品説明
+${p.name} です。${p.category}カテゴリの商品をお探しの方におすすめです。
+状態や付属品について気になる点がございましたらコメントよりお気軽にお問い合わせください。
+
+■価格：${yen(p.sellPrice)}（${p.platform}）
+■発送：ご購入後、なるべく早く発送いたします。
+■注意事項：中古品/新品未使用等の状態は商品ページの説明をご確認ください。
+
+#${p.category} #${p.platform.replace(/[!\/]/g,'')} #掘り出し物`;
+  document.getElementById('listingOutput').value = body;
+}
+function copyListingText(){
+  const el = document.getElementById('listingOutput');
+  el.select();
+  try{ document.execCommand('copy'); toast('コピーしました'); }
+  catch(e){
+    if(navigator.clipboard){ navigator.clipboard.writeText(el.value).then(()=>toast('コピーしました')); }
+  }
+}
+function calcPricing(){
+  const breakeven = Number(document.getElementById('pBreakeven').value)||0;
+  const minMargin = Number(document.getElementById('pMinMargin').value)||0;
+  const competitor = Number(document.getElementById('pCompetitor').value)||0;
+  const undercut = Number(document.getElementById('pUndercut').value)||0;
+
+  const minPriceForMargin = minMargin<100 ? breakeven / (1 - minMargin/100) : breakeven*2;
+  const undercutPrice = competitor * (1 - undercut/100);
+  const recommended = Math.max(minPriceForMargin, undercutPrice>0?undercutPrice:0);
+
+  document.getElementById('pricingResult').innerHTML = `
+    <div class="stat-row"><span>最低利益率${minMargin}%を確保できる価格</span><span class="v">${yen(minPriceForMargin)}</span></div>
+    <div class="stat-row"><span>競合最安値から${undercut}%値下げした価格</span><span class="v">${competitor? yen(undercutPrice):'—'}</span></div>
+    <div class="verdict good" style="margin-top:12px;">💰 推奨出品価格：${yen(recommended)}</div>
+    <p style="font-size:0.78rem;color:var(--text3);margin-top:8px;">
+      ${undercutPrice>0 && undercutPrice<minPriceForMargin ? '⚠️ 競合追従価格では最低利益率を割り込みます。値下げ競争に安易に参加せず、付加価値（即納・保証・セット販売等）での差別化を検討しましょう。':'競合価格に対して十分な利益を確保できる水準です。'}
+    </p>
+  `;
+}
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+function monthKey(d){ return d.slice(0,7); }
+function thisMonthKey(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function lastNMonthKeys(n){
+  const arr=[]; const d=new Date();
+  for(let i=n-1;i>=0;i--){
+    const dt = new Date(d.getFullYear(), d.getMonth()-i, 1);
+    arr.push(dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0'));
+  }
+  return arr;
+}
+function soldProducts(){ return products.filter(p=>p.status==='売却済み' && p.soldDate); }
+
+function renderDashboard(){
+  const tm = thisMonthKey();
+  const sold = soldProducts();
+  const thisMonthSold = sold.filter(p=>monthKey(p.soldDate)===tm);
+  const agg = thisMonthSold.reduce((a,p)=>{ const r=computeProduct(p); a.revenue+=r.revenue; a.cost+=r.totalCost; a.profit+=r.profit; return a; },{revenue:0,cost:0,profit:0});
+  const thisMonthPurchaseCost = products.filter(p=>p.purchaseDate && monthKey(p.purchaseDate)===tm)
+    .reduce((s,p)=> s + ((Number(p.costPrice)||0)+(Number(p.inShip)||0))*(Number(p.qty)||1), 0);
+
+  document.getElementById('chipProfit').textContent = yen(agg.profit);
+  const goalPct = Math.min(100, agg.profit/500000*100);
+  document.getElementById('chipGoalPct').textContent = pct(goalPct) ;
+
+  document.getElementById('progLabel50').innerHTML = `${yen(agg.profit)} / ¥500,000`;
+  document.getElementById('progBar50').style.width = Math.min(100, agg.profit/500000*100) + '%';
+  document.getElementById('progLabel100').innerHTML = `${yen(agg.profit)} / ¥1,000,000`;
+  document.getElementById('progBar100').style.width = Math.min(100, agg.profit/1000000*100) + '%';
+
+  const inStock = products.filter(p=>p.status==='仕入れ済み'||p.status==='出品中');
+  const inStockValue = inStock.reduce((s,p)=> s + ((Number(p.costPrice)||0)+(Number(p.inShip)||0))*(Number(p.qty)||1), 0);
+  const totalProfitAllTime = sold.reduce((s,p)=> s + computeProduct(p).profit, 0);
+
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi"><div class="kpi-label">今月の売上</div><div class="kpi-value">${yen(agg.revenue)}</div></div>
+    <div class="kpi"><div class="kpi-label">今月の仕入額</div><div class="kpi-value">${yen(thisMonthPurchaseCost)}</div></div>
+    <div class="kpi"><div class="kpi-label">今月の利益</div><div class="kpi-value ${agg.profit>=0?'pos':'neg'}">${yen(agg.profit)}</div></div>
+    <div class="kpi"><div class="kpi-label">累計利益</div><div class="kpi-value ${totalProfitAllTime>=0?'pos':'neg'}">${yen(totalProfitAllTime)}</div>
+      <div class="kpi-sub">在庫評価額 ${yen(inStockValue)}（${inStock.length}件）</div></div>
+  `;
+
+  // Profit trend chart (6 months)
+  const months = lastNMonthKeys(6);
+  const monthProfits = months.map(m=> sold.filter(p=>monthKey(p.soldDate)===m).reduce((s,p)=>s+computeProduct(p).profit,0));
+  drawBarChart('profitChart', months.map(m=>m.slice(5)+'月'), monthProfits, {goalLine:500000});
+
+  // Category donut
+  const catTotals = {};
+  sold.forEach(p=>{ const r=computeProduct(p); catTotals[p.category] = (catTotals[p.category]||0) + Math.max(0,r.profit); });
+  const catLabels = Object.keys(catTotals);
+  const catValues = catLabels.map(k=>catTotals[k]);
+  drawDonutChart('categoryDonutChart', catValues, CAT_COLORS);
+  document.getElementById('categoryLegend').innerHTML = catLabels.length ? catLabels.map((l,i)=>
+    `<div style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:var(--text2);margin-bottom:4px;">
+      <span style="width:10px;height:10px;border-radius:2px;background:${CAT_COLORS[i%CAT_COLORS.length]};display:inline-block;"></span>
+      ${l}：${yen(catTotals[l])}
+    </div>`).join('') : '<div class="badge-note">売却済み商品がまだありません</div>';
+}
+
+/* ============================================================
+   ANALYTICS TAB
+   ============================================================ */
+function renderAnalytics(){
+  const sold = soldProducts();
+  const months = lastNMonthKeys(6);
+  const rows = months.map(m=>{
+    const list = sold.filter(p=>monthKey(p.soldDate)===m);
+    const agg = list.reduce((a,p)=>{const r=computeProduct(p);a.rev+=r.revenue;a.cost+=r.totalCost;a.profit+=r.profit;return a;},{rev:0,cost:0,profit:0});
+    return {m, count:list.length, ...agg};
+  });
+  document.getElementById('monthlyTable').innerHTML = `
+    <table><thead><tr><th>月</th><th>販売件数</th><th>売上</th><th>コスト</th><th>利益</th><th>利益率</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr>
+      <td>${r.m}</td><td>${r.count}</td><td>${yen(r.rev)}</td><td>${yen(r.cost)}</td>
+      <td style="color:${r.profit>=0?'#34D399':'#F87171'};font-weight:700;">${yen(r.profit)}</td>
+      <td>${r.rev>0?pct(r.profit/r.rev*100):'—'}</td>
+    </tr>`).join('')}</tbody></table>`;
+
+  const platTotals = {};
+  sold.forEach(p=>{ const r=computeProduct(p); platTotals[p.platform]=(platTotals[p.platform]||0)+Math.max(0,r.profit); });
+  const platLabels = Object.keys(platTotals);
+  drawBarChart('platformChart', platLabels, platLabels.map(l=>platTotals[l]), {horizontal:true});
+
+  const top = sold.map(p=>({p, r:computeProduct(p)})).sort((a,b)=>b.r.profit-a.r.profit).slice(0,5);
+  document.getElementById('topProductsList').innerHTML = top.length ? `
+    <table><thead><tr><th>商品名</th><th>販路</th><th>売却日</th><th>利益</th><th>利益率</th></tr></thead>
+    <tbody>${top.map(({p,r})=>`<tr><td>${escapeHtml(p.name)}</td><td>${p.platform}</td><td>${p.soldDate||'—'}</td>
+      <td style="color:#34D399;font-weight:700;">${yen(r.profit)}</td><td>${pct(r.marginPct)}</td></tr>`).join('')}</tbody></table>
+  ` : `<div class="empty-state"><span class="ic">🏆</span>まだ売却済みの商品がありません</div>`;
+}
+
+/* ============================================================
+   CANVAS CHARTS (vanilla, no external lib)
+   ============================================================ */
+function setupCanvas(id){
+  const c = document.getElementById(id);
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = c.parentElement.clientWidth - 40;
+  const cssH = Number(c.getAttribute('height')) || 200;
+  c.width = cssW*dpr; c.height = cssH*dpr; c.style.width=cssW+'px'; c.style.height=cssH+'px';
+  const ctx = c.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,cssW,cssH);
+  return {ctx, w:cssW, h:cssH};
+}
+function drawBarChart(id, labels, values, opts){
+  opts = opts||{};
+  const {ctx,w,h} = setupCanvas(id);
+  if(labels.length===0){ ctx.fillStyle='#5B6472'; ctx.font='13px sans-serif'; ctx.fillText('データがありません', 10, h/2); return; }
+  const padL=10,padR=10,padT=14,padB=26;
+  const plotW = w-padL-padR, plotH = h-padT-padB;
+  const maxVal = Math.max(...values, opts.goalLine||0, 1);
+  const minVal = Math.min(...values, 0);
+  const range = maxVal-minVal || 1;
+  const zeroY = padT + plotH*(maxVal/range);
+
+  if(opts.goalLine){
+    const gy = padT + plotH*(1-(opts.goalLine-minVal)/range);
+    ctx.strokeStyle='rgba(245,158,11,0.5)'; ctx.setLineDash([4,4]); ctx.beginPath();
+    ctx.moveTo(padL,gy); ctx.lineTo(w-padR,gy); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle='#F59E0B'; ctx.font='10px sans-serif'; ctx.fillText('目標50万', w-padR-58, gy-4);
+  }
+
+  const bw = plotW/labels.length*0.6;
+  const gap = plotW/labels.length;
+  values.forEach((v,i)=>{
+    const x = padL + gap*i + (gap-bw)/2;
+    const barH = plotH*(Math.abs(v)/range);
+    const y = v>=0 ? zeroY-barH : zeroY;
+    const grad = ctx.createLinearGradient(0,y,0,y+barH);
+    if(v>=0){ grad.addColorStop(0,'#10B981'); grad.addColorStop(1,'#06B6D4'); } else { grad.addColorStop(0,'#EF4444'); grad.addColorStop(1,'#F87171'); }
+    ctx.fillStyle=grad;
+    roundRect(ctx, x, y, bw, Math.max(barH,2), 4);
+    ctx.fillStyle='#8A96A3'; ctx.font='10px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(labels[i], x+bw/2, h-8);
+  });
+  ctx.textAlign='left';
+}
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath(); ctx.fill();
+}
+function drawDonutChart(id, values, colors){
+  const {ctx,w,h} = setupCanvas(id);
+  const total = values.reduce((a,b)=>a+b,0);
+  const cx=w/2, cy=h/2, r=Math.min(w,h)/2-8, rw=r*0.4;
+  if(total<=0){ ctx.fillStyle='#5B6472'; ctx.font='13px sans-serif'; ctx.textAlign='center'; ctx.fillText('データがありません', cx, cy); ctx.textAlign='left'; return; }
+  let start=-Math.PI/2;
+  values.forEach((v,i)=>{
+    const angle = v/total*Math.PI*2;
+    ctx.beginPath();
+    ctx.arc(cx,cy,r,start,start+angle);
+    ctx.arc(cx,cy,r-rw,start+angle,start,true);
+    ctx.closePath();
+    ctx.fillStyle = colors[i%colors.length];
+    ctx.fill();
+    start += angle;
+  });
+}
+
+/* ============================================================
+   AI ADVISOR (RULE-BASED, ALWAYS AVAILABLE OFFLINE)
+   ============================================================ */
+function generateAdvisorReport(){
+  const sold = soldProducts();
+  const months = lastNMonthKeys(3);
+  const monthlyProfits = months.map(m=> sold.filter(p=>monthKey(p.soldDate)===m).reduce((s,p)=>s+computeProduct(p).profit,0));
+  const avgProfit = monthlyProfits.reduce((a,b)=>a+b,0)/3;
+  const trendUp = monthlyProfits[2] > monthlyProfits[0];
+
+  const inStock = products.filter(p=>p.status==='仕入れ済み'||p.status==='出品中');
+  const today = new Date();
+  const staleItems = inStock.filter(p=>{
+    if(!p.purchaseDate) return false;
+    const days = (today - new Date(p.purchaseDate))/86400000;
+    return days>60;
+  });
+
+  const catCount = {};
+  products.forEach(p=>{ catCount[p.category]=(catCount[p.category]||0)+1; });
+  const totalCount = products.length||1;
+  const maxCat = Object.entries(catCount).sort((a,b)=>b[1]-a[1])[0];
+  const concentrationRisk = maxCat && (maxCat[1]/totalCount) > 0.6;
+
+  const lowMarginItems = products.filter(p=>{
+    const r = computeProduct(p);
+    return r.roiPct < 15 && (p.status==='出品中'||p.status==='仕入れ済み');
+  });
+
+  let diag = [];
+  diag.push(avgProfit>=500000 ? '直近3ヶ月平均利益は目標の月利50万円を上回っています。水準を維持しつつ100万円ラインを目指しましょう。'
+    : avgProfit>0 ? `直近3ヶ月の平均利益は${yen(avgProfit)}です。月利50万円まであと${yen(Math.max(0,500000-avgProfit))}の積み増しが必要です。`
+    : '直近3ヶ月で利益計上された売却データがありません。まずは小口の仕入れ・販売実績を積み上げましょう。');
+  diag.push(trendUp ? '利益は増加トレンドにあります。この調子で仕入れロットを段階的に拡大しましょう。' : '利益が横ばい・減少傾向です。原因（値崩れ・在庫滞留・広告費増加等）を特定しましょう。');
+
+  let risks = [];
+  if(staleItems.length>0) risks.push(`仕入れから60日以上経過し未売却の商品が${staleItems.length}件あります（${staleItems.slice(0,3).map(p=>escapeHtml(p.name)).join('、')}等）。値下げ・セット販売・他チャネルへの出品で現金化を検討しましょう。`);
+  if(concentrationRisk) risks.push(`商品構成が「${maxCat[0]}」カテゴリに偏っています（全体の${Math.round(maxCat[1]/totalCount*100)}%）。市場変動に弱くなるため、カテゴリ分散を検討しましょう。`);
+  if(lowMarginItems.length>0) risks.push(`ROI15%未満の低採算商品が${lowMarginItems.length}件あります。値上げ余地の確認、または在庫処分を検討しましょう。`);
+  if(risks.length===0) risks.push('現時点で大きなリスクは検出されていません。継続してデータを記録してください。');
+
+  let actions = [];
+  if(staleItems.length>0) actions.push('滞留在庫の値下げ・処分を今週中に実施する');
+  if(lowMarginItems.length>0) actions.push('低ROI商品の仕入れ先を再交渉、または扱いを縮小する');
+  actions.push('直近で最も利益率が高かった商品カテゴリ・販路をリサーチし、同ジャンルで仕入れ候補を5点洗い出す');
+  actions.push('今月の目標利益から逆算した必要仕入れ件数を「ロードマップ」タブで確認する');
+  actions.push('売却済み商品の記録を毎日つけ、利益率とROIの推移をこのダッシュボードで定点観測する');
+
+  const nextBudget = Math.max(50000, Math.round((avgProfit>0?avgProfit:100000) * 1.2 / 1000)*1000);
+
+  document.getElementById('advisorReport').innerHTML = `
+    <div class="report-section"><h4>📌 現状診断</h4><ul>${diag.map(d=>`<li>${d}</li>`).join('')}</ul></div>
+    <div class="report-section"><h4>⚠️ リスク警告</h4><ul>${risks.map(d=>`<li>${d}</li>`).join('')}</ul></div>
+    <div class="report-section"><h4>✅ 今やるべきTOPアクション</h4><ul>${actions.map(d=>`<li>${d}</li>`).join('')}</ul></div>
+    <div class="report-section"><h4>💰 来月の仕入れ予算目安</h4><p style="font-size:0.9rem;">${yen(nextBudget)} 前後（直近実績の利益額をもとに、資金効率を考慮した目安です）</p></div>
+  `;
+}
+
+/* ============================================================
+   AI CHAT (OPTIONAL EXTERNAL API)
+   ============================================================ */
+function loadAiSettings(){
+  try{ return JSON.parse(localStorage.getItem(LS_AI)) || {}; }catch(e){ return {}; }
+}
+function saveAiSettings(){
+  const data = {
+    provider: document.getElementById('aiProvider').value,
+    model: document.getElementById('aiModel').value,
+    apiKey: document.getElementById('aiApiKey').value,
+    endpoint: document.getElementById('aiEndpoint').value,
+  };
+  localStorage.setItem(LS_AI, JSON.stringify(data));
+  toast('AI設定を保存しました（この端末のみに保存）');
+}
+function clearAiSettings(){
+  localStorage.removeItem(LS_AI);
+  document.getElementById('aiApiKey').value = '';
+  toast('APIキーを削除しました');
+}
+function renderAiSettingsForm(){
+  const s = loadAiSettings();
+  document.getElementById('aiProvider').value = s.provider || 'anthropic';
+  document.getElementById('aiModel').value = s.model || '';
+  document.getElementById('aiApiKey').value = s.apiKey || '';
+  document.getElementById('aiEndpoint').value = s.endpoint || '';
+  toggleEndpointField();
+}
+document.getElementById('aiProvider') && document.getElementById('aiProvider').addEventListener('change', toggleEndpointField);
+function toggleEndpointField(){
+  const provider = document.getElementById('aiProvider').value;
+  document.getElementById('aiEndpointField').style.display = provider==='openai' ? 'block':'none';
+}
+async function callAi(userText, contextSummary){
+  const s = loadAiSettings();
+  if(!s.apiKey) throw new Error('APIキーが未設定です（設定タブで登録してください）');
+  const sys = `あなたは日本語で回答するEC物販ビジネスの専門アドバイザーです。以下はユーザーの物販事業の実績サマリーです。これを踏まえて具体的かつ実行可能なアドバイスを簡潔に日本語で答えてください。\n${contextSummary}`;
+  if(s.provider === 'anthropic'){
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{
+        'content-type':'application/json',
+        'x-api-key': s.apiKey,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body: JSON.stringify({
+        model: s.model || 'claude-sonnet-5',
+        max_tokens: 800,
+        system: sys,
+        messages: [{role:'user', content: userText}]
+      })
+    });
+    if(!res.ok) throw new Error('API応答エラー: ' + res.status);
+    const json = await res.json();
+    return (json.content && json.content[0] && json.content[0].text) || JSON.stringify(json);
+  } else {
+    const base = (s.endpoint || 'https://api.openai.com/v1').replace(/\/$/,'');
+    const res = await fetch(base+'/chat/completions', {
+      method:'POST',
+      headers:{ 'content-type':'application/json', 'authorization':'Bearer '+s.apiKey },
+      body: JSON.stringify({
+        model: s.model || 'gpt-4o-mini',
+        messages: [{role:'system',content:sys},{role:'user',content:userText}]
+      })
+    });
+    if(!res.ok) throw new Error('API応答エラー: ' + res.status);
+    const json = await res.json();
+    return json.choices?.[0]?.message?.content || JSON.stringify(json);
+  }
+}
+function buildContextSummary(){
+  const sold = soldProducts();
+  const tm = thisMonthKey();
+  const thisMonthProfit = sold.filter(p=>monthKey(p.soldDate)===tm).reduce((s,p)=>s+computeProduct(p).profit,0);
+  const inStock = products.filter(p=>p.status==='仕入れ済み'||p.status==='出品中').length;
+  return `今月の利益:${Math.round(thisMonthProfit)}円 / 在庫商品数:${inStock} / 累計販売件数:${sold.length}件 / 目標:月利50万〜100万円`;
+}
+function appendChat(role, text){
+  const log = document.getElementById('chatLog');
+  const div = document.createElement('div');
+  div.className = 'chat-msg ' + (role==='user'?'user':'ai');
+  div.innerHTML = `<span class="who">${role==='user'?'あなた':'AI'}</span>${escapeHtml(text).replace(/\n/g,'<br>')}`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+async function sendChat(){
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if(!text) return;
+  appendChat('user', text);
+  input.value = '';
+  appendChat('ai', '…考え中…');
+  const log = document.getElementById('chatLog');
+  try{
+    const reply = await callAi(text, buildContextSummary());
+    log.lastChild.innerHTML = `<span class="who">AI</span>${escapeHtml(reply).replace(/\n/g,'<br>')}`;
+  }catch(e){
+    log.lastChild.innerHTML = `<span class="who">AI</span>⚠️ ${escapeHtml(e.message)}。上部の「経営診断レポート」機能もあわせてご利用ください。`;
+  }
+  log.scrollTop = log.scrollHeight;
+}
+async function testAiConnection(){
+  saveAiSettings();
+  const el = document.getElementById('aiTestResult');
+  el.textContent = '接続確認中...';
+  try{
+    const reply = await callAi('こんにちは、接続テストです。「接続成功」とだけ日本語で返答してください。', buildContextSummary());
+    el.innerHTML = '<span style="color:#34D399;">✅ 接続成功：</span>' + escapeHtml(reply).slice(0,200);
+  }catch(e){
+    el.innerHTML = '<span style="color:#F87171;">⚠️ 接続失敗：</span>' + escapeHtml(e.message) + '（ブラウザのCORS制限の可能性があります）';
+  }
+}
+
+/* ============================================================
+   ROADMAP TAB
+   ============================================================ */
+const ROADMAP_PHASES = [
+  { key:'phase1', title:'Phase 1｜0〜1ヶ月目：小口検証フェーズ', sub:'目安資金：10〜30万円',
+    items:[
+      '古物商許可の要否を確認する（中古品を扱う場合は必須）',
+      '扱うカテゴリを1〜2個に絞ってリサーチする（最低100商品分の利益シミュレーション）',
+      '最初の10〜20商品を小ロットで仕入れる',
+      '複数プラットフォームにテスト出品し、反応（閲覧・いいね・質問）を記録する',
+      '本ツールで全商品の利益率・ROIを記録し、仕入れ基準（例：ROI30%以上）を明文化する'
+    ]},
+  { key:'phase2', title:'Phase 2｜2〜3ヶ月目：資金効率化フェーズ', sub:'目安月利：10〜30万円',
+    items:[
+      '売れ筋商品を特定し、リピート仕入れ（再発注）する',
+      '仕入れ資金の回転率（月に何回転できるか）を計測し、回転数を上げる工夫をする',
+      '複数販路（Amazon・メルカリ・ヤフオク等）に展開し、最も利益率の高い販路を見極める',
+      '在庫滞留（60日以上売れない商品）が出た場合は早めに値下げ・処分する',
+      '経費（送料・梱包資材・広告費）を記録し、正確な利益率を把握する'
+    ]},
+  { key:'phase3', title:'Phase 3｜4〜6ヶ月目：仕組み化フェーズ', sub:'目安月利：30〜60万円',
+    items:[
+      '梱包・発送作業をFBA活用や外注（内職・BPO）で仕組み化する',
+      '仕入れ先を複数確保し、特定の仕入れ先への依存リスクを分散する',
+      'AIアドバイザー機能を使い、月次で経営診断レポートを確認する習慣をつける',
+      '月次で帳簿を締め、確定申告に向けた記録（売上・仕入・経費）を整理する',
+      '価格戦略シミュレーターを使い、値下げ競争に巻き込まれない価格設定ルールを作る'
+    ]},
+  { key:'phase4', title:'Phase 4｜7ヶ月目以降：拡大フェーズ', sub:'目安月利：50〜100万円以上',
+    items:[
+      '月利50万円を3ヶ月連続達成したら法人化（法人成り）を税理士に相談する',
+      'リサーチ・出品作業の一部を外部人材に委託し、自分は仕入れ判断とデータ分析に集中する',
+      '新カテゴリへの展開、または輸出（海外販売）など新たな販路を検討する',
+      '資金力に応じて仕入れロットを拡大しつつ、在庫リスク管理ルールを厳格化する',
+      '定期的に古物営業法・特定商取引法・税制の変更をチェックする'
+    ]},
+];
+function renderRoadmapChecklists(){
+  let state = {};
+  try{ state = JSON.parse(localStorage.getItem(LS_ROADMAP)) || {}; }catch(e){}
+  const html = ROADMAP_PHASES.map(phase=>{
+    const items = phase.items.map((text,i)=>{
+      const id = phase.key+'_'+i;
+      const checked = !!state[id];
+      return `<div class="check-item ${checked?'done':''}">
+        <input type="checkbox" id="${id}" ${checked?'checked':''} onchange="toggleRoadmapItem('${id}', this.checked)">
+        <label for="${id}">${text}</label>
+      </div>`;
+    }).join('');
+    return `<div class="phase-block">
+      <div class="phase-title">🚩 ${phase.title}</div>
+      <div class="phase-sub">${phase.sub}</div>
+      ${items}
+    </div>`;
+  }).join('');
+  document.getElementById('roadmapChecklists').innerHTML = `<h3><span class="ic">✅</span>フェーズ別チェックリスト</h3>` + html;
+}
+function toggleRoadmapItem(id, checked){
+  let state = {};
+  try{ state = JSON.parse(localStorage.getItem(LS_ROADMAP)) || {}; }catch(e){}
+  state[id] = checked;
+  localStorage.setItem(LS_ROADMAP, JSON.stringify(state));
+  renderRoadmapChecklists();
+}
+function calcRoadmap(){
+  const target = Number(document.getElementById('rmTargetProfit').value)||500000;
+  const margin = Number(document.getElementById('rmMargin').value)||15;
+  const turns = Number(document.getElementById('rmTurns').value)||1;
+  const requiredRevenue = target / (margin/100);
+  const requiredCapitalPerTurn = turns>0 ? (requiredRevenue*(1-margin/100)) / turns : requiredRevenue*(1-margin/100);
+  document.getElementById('roadmapCalcResult').innerHTML = `
+    <div class="stat-row"><span>必要な月商（売上高）</span><span class="v">${yen(requiredRevenue)}</span></div>
+    <div class="stat-row"><span>1回転あたりの必要仕入資金の目安</span><span class="v">${yen(requiredCapitalPerTurn)}</span></div>
+    <div class="badge-note" style="display:block;margin-top:8px;">※利益率${margin}%・月${turns}回転を想定した概算です。実際は在庫リスクや販売スピードにより変動します。</div>
+  `;
+}
+
+/* ============================================================
+   SETTINGS TAB
+   ============================================================ */
+function renderSettingsTab(){
+  document.getElementById('feePresetEditor').innerHTML = PLATFORMS.map(p=>`
+    <div class="field">
+      <label>${p} 手数料(%)</label>
+      <input type="number" step="0.1" value="${settings.fees[p]}" onchange="updateFeePreset('${p}', this.value)">
+    </div>
+  `).join('');
+  renderAiSettingsForm();
+}
+function updateFeePreset(platform, val){
+  settings.fees[platform] = Number(val)||0;
+  saveSettings();
+  toast(platform+'の手数料を更新しました');
+}
+
+/* ============================================================
+   DATA MANAGEMENT
+   ============================================================ */
+function exportData(){
+  const data = { products, settings, roadmap: JSON.parse(localStorage.getItem(LS_ROADMAP)||'{}'), exportedAt: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'ai-sales-pilot-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('エクスポートしました');
+}
+function importData(evt){
+  const file = evt.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const data = JSON.parse(e.target.result);
+      if(Array.isArray(data.products)) products = data.products;
+      if(data.settings && data.settings.fees) settings = data.settings;
+      if(data.roadmap) localStorage.setItem(LS_ROADMAP, JSON.stringify(data.roadmap));
+      saveProducts(); saveSettings();
+      renderAll();
+      toast('インポートしました');
+    }catch(err){
+      alert('ファイルの読み込みに失敗しました：' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  evt.target.value = '';
+}
+function clearAllData(){
+  if(!confirm('本当にすべての商品データを削除しますか？この操作は元に戻せません。')) return;
+  products = [];
+  saveProducts();
+  localStorage.removeItem(LS_ROADMAP);
+  renderAll();
+  toast('データを削除しました');
+}
+
+/* ============================================================
+   SAMPLE DATA
+   ============================================================ */
+function loadSampleData(){
+  if(products.length>0 && !confirm('既存の商品データに、サンプルデータを追加します。よろしいですか？')) return;
+  const sampleNames = {
+    '家電':['ワイヤレスイヤホン','モバイルバッテリー','スマートウォッチ','LEDデスクライト'],
+    'ゲーム':['レトロゲーム機','人気タイトル ソフト','コントローラー','ゲーミングヘッドセット'],
+    'ファッション':['ブランドTシャツ','デザイナーズバッグ','スニーカー','アクセサリーセット'],
+    'コスメ':['海外コスメセット','美容ローラー','スキンケアセット'],
+    'ホビー':['フィギュア','トレーディングカード','プラモデル'],
+    'おもちゃ':['知育玩具','キャラクターグッズ']
+  };
+  const cats = Object.keys(sampleNames);
+  const today = new Date();
+  // As the business scales up: more items sold per month AND slightly bigger average ticket size,
+  // while keeping a realistic per-item margin (15-35%) — this is what "growth" actually looks like,
+  // not a magically higher margin on the same cheap items.
+  const itemCounts = [10, 14, 19, 24, 29, 34];
+  const costRanges = [[1500,5000],[1800,6000],[2200,7500],[2800,9500],[3500,12000],[4200,15000]];
+  let newItems = [];
+  for(let m=0;m<6;m++){
+    const monthDate = new Date(today.getFullYear(), today.getMonth()-(5-m), 1);
+    const count = itemCounts[m];
+    const [costMin,costMax] = costRanges[m];
+    for(let i=0;i<count;i++){
+      const cat = cats[Math.floor(Math.random()*cats.length)];
+      const names = sampleNames[cat];
+      const name = names[Math.floor(Math.random()*names.length)] + ' #' + (i+1);
+      const platform = PLATFORMS[Math.floor(Math.random()*(PLATFORMS.length-1))];
+      const feePct = settings.fees[platform] ?? 8;
+      const cost = Math.round((costMin + Math.random()*(costMax-costMin))/10)*10;
+      const inShip = Math.round(cost*0.05);
+      const outShip = 400;
+      const marginTarget = 0.15 + Math.random()*0.2; // realistic 15-35% margin after fees
+      let sell = (cost+inShip+outShip) / (1 - marginTarget - feePct/100);
+      sell = Math.max(cost+500, Math.round(sell/10)*10);
+      const qty = 1;
+      const day = 1 + Math.floor(Math.random()*27);
+      const soldDate = new Date(monthDate.getFullYear(), monthDate.getMonth(), day);
+      const purchaseDate = new Date(soldDate.getTime() - (3+Math.floor(Math.random()*10))*86400000);
+      newItems.push({
+        id: uid(), name, category: cat==='ホビー'?'ゲーム':cat, platform, status:'売却済み',
+        costPrice: cost, qty, inShip, sellPrice: sell, feePct,
+        outShip, adCost: 0,
+        purchaseDate: purchaseDate.toISOString().slice(0,10),
+        soldDate: soldDate.toISOString().slice(0,10),
+        supplier:'サンプル仕入先', memo:'サンプルデータ'
+      });
+    }
+  }
+  // A few in-progress inventory items
+  ['出品中','仕入れ済み','仕入れ検討中'].forEach((status,i)=>{
+    const cat = cats[i%cats.length];
+    newItems.push({
+      id: uid(), name: sampleNames[cat][0]+'（進行中サンプル）', category: cat==='ホビー'?'ゲーム':cat,
+      platform: PLATFORMS[i%4], status, costPrice: 2500, qty:1, inShip:150, sellPrice:5480,
+      feePct: settings.fees[PLATFORMS[i%4]] ?? 8, outShip:400, adCost:0,
+      purchaseDate: new Date(today.getTime()-(10+i*20)*86400000).toISOString().slice(0,10),
+      soldDate:'', supplier:'サンプル仕入先', memo:'サンプルデータ'
+    });
+  });
+  products = products.concat(newItems);
+  saveProducts();
+  renderAll();
+  toast('サンプルデータを投入しました（6ヶ月分の推移が確認できます）');
+}
+
+/* ============================================================
+   UTIL
+   ============================================================ */
+function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeAttr(s){ return escapeHtml(s); }
+
+/* ============================================================
+   INIT
+   ============================================================ */
+function renderAll(){
+  renderDashboard();
+  renderInventory();
+  renderListingSelect();
+  renderAnalytics();
+  renderSettingsTab();
+  renderRoadmapChecklists();
+}
+loadState();
+initResearchForm();
+renderAll();
+window.addEventListener('resize', ()=>{ renderDashboard(); if(document.getElementById('tab-analytics').classList.contains('active')) renderAnalytics(); });
+</script>
+</body>
+</html>
